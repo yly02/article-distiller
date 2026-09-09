@@ -22,7 +22,7 @@ LLM 配置优先级：环境变量、显式配置文件、ccswitch 当前 Codex 
 - `DISTILL_LLM_MODEL`
 - `--config /path/to/config.json`
 
-接口须兼容 OpenAI Chat Completions。ccswitch 只有在能解析出当前提供商、密钥和基础地址时才算配置有效；不得仅凭数据库文件存在就通过预检。
+接口须兼容 OpenAI Chat Completions。ccswitch 只有在能解析出当前提供商、密钥和基础地址时才算配置有效；不得仅凭数据库文件存在就通过预检。完整运行前会用一句 JSON 探测接口：额度不足、模型名不存在、返回空内容或 HTML 门户页时立即停止，不拿长文去试错。
 
 ## 常用命令
 
@@ -34,6 +34,7 @@ $PY "$SKILL_ROOT/scripts/run.py" <URL> -o article
 $PY "$SKILL_ROOT/scripts/run.py" report.pdf -o article
 $PY "$SKILL_ROOT/scripts/run.py" report.docx -o article
 $PY "$SKILL_ROOT/scripts/run.py" --from-text raw.md --title "标题" -o article
+$PY "$SKILL_ROOT/scripts/run.py" article.review.json -o article
 
 # 无 LLM 配置时先生成 prompt 包，之后渲染深度文章
 $PY "$SKILL_ROOT/scripts/run.py" <URL> --source-only -o pack.json

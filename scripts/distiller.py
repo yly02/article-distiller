@@ -192,7 +192,9 @@ FULL_SYSTEM_PROMPT = _COMMON_MODE_RULES + _FULL_VOICE_GUIDE + """
 - scenario_calculator 至少包含 2 个 tabs、每个 tab 至少 1 个有来源的指标、合法 slider 与 result.base，并登记 source_asset_ids。滑块值是用户假设而非证据；若多个数值不属于同一平台、样本或时间口径，必须在指标 note、formula_note 和 caption 中明确说明。
 - capacity_curve 包含3至5个 position 严格递增的定性状态，每项写 label、result 和语义 tone；不得把示意滑块伪装成精确预测器，caption 必须说明转折点随条件变化。
 - cost_ledger 包含1至4个 cost_labels 和2至6个唯一情景；included 只能引用 cost_labels，每个情景写清 verdict 与 explanation，并提供统一 boundary。
-- strategy_tabs 包含2至6个平行方案；每项必须有 label、target、mechanism、expected_effect、open_questions 和语义 tone，并提供统一 boundary。
+- strategy_tabs 包含2至6个平行方案；数组字段必须叫 strategies，不要用 items。每项必须有 label、target、mechanism、expected_effect、open_questions 和语义 tone，并提供统一 boundary。
+- compare_table.rows 必须是二维数组，例如 [["规格","A","B"]]，不要写成 {"cells":[...]}。matrix 适合固定列名的规格对照。
+- delta_table.rows 必须是对象数组，字段为 label、baseline、current、change、direction、tone；不要用 items、old、new。
 - action_card 与 takeaway_list 不得复述同一组建议；内容相近时只保留一种，另一项输出空结构。
 - further_reading 只收录本次实际读取、能补充实现细节或独立证据的 1-5 条材料；不重复主材料，不放搜索结果页，不用发布方名称代替材料标题。完整文章页末会把主材料、延伸阅读和简短来源说明统一排成资料区。
 - further_reading 的 title 使用准确、自然的中文标题，必要时保留论文、模型、机构或产品的官方专名；不能直接把一串英文标题端给中文读者，也不能为了中文化改变原题含义。
@@ -1022,6 +1024,7 @@ def distill(
         "max_retries": 0,
     }
     client = OpenAI(**client_kwargs)
+    _probe_llm_endpoint(client, cfg)
 
     research = _load_stage_checkpoint(checkpoint_dir, "research", fingerprint) if two_stage else None
     if two_stage:
@@ -1234,7 +1237,7 @@ def distill(
             + "\n\n--- 研究证据账本（仅保留修复所需口径） ---\n"
             + _serialize_research_ledger(research or {}, max_chars=12000)
             + "\n\n--- 当前完整文章 ---\n"
-            + _serialize_draft(result, max_chars=36000)
+            + _serialize_draft(result, max_chars=60000)
             + "\n\n只修复上述阻断项，不删减已经通过的事实、实验、案例、来源和边界。"
             "请返回可确定合并的 article_patch，不要返回完整 revised_article。"
         )
@@ -1357,8 +1360,57 @@ def _serialize_draft(draft: dict, max_chars: int = 60000) -> str:
             compact[field] = compact[field][:limit]
     serialized = json.dumps(compact, ensure_ascii=False)
     if len(serialized) > max_chars:
-        raise ValueError("草稿过大，无法在不破坏 JSON 的情况下送入编辑审校阶段")
+        compact = {
+            "distilled_title": compact.get("distilled_title"),
+            "one_liner": compact.get("one_liner"),
+            "quick_scan": compact.get("quick_scan"),
+            "sections": list(compact.get("sections") or [])[:8],
+            "visuals": list(compact.get("visuals") or [])[:6],
+            "source_media": list(compact.get("source_media") or [])[:8],
+            "number_stories": list(compact.get("number_stories") or [])[:12],
+            "draft_truncated_for_review": True,
+        }
+        serialized = json.dumps(compact, ensure_ascii=False)
+        if len(serialized) > max_chars:
+            serialized = json.dumps({
+                "distilled_title": compact.get("distilled_title"),
+                "sections": list(compact.get("sections") or [])[:4],
+                "draft_truncated_for_review": True,
+            }, ensure_ascii=False)
     return serialized
+
+
+def _probe_llm_endpoint(client, cfg: dict) -> None:
+    """Fail fast on empty, HTML, quota, or model-not-found responses before long stages."""
+    if str(cfg.get("api_key") or "") == "test-key":
+        return
+    try:
+        response = client.chat.completions.create(
+            model=cfg["model"],
+            messages=[
+                {"role": "system", "content": "You return JSON only."},
+                {"role": "user", "content": '{"ok": true}'},
+            ],
+            temperature=0,
+            max_tokens=16,
+        )
+        content = ""
+        try:
+            content = response.choices[0].message.content or ""
+        except (AttributeError, IndexError, TypeError):
+            content = str(response or "")
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(
+            "LLM 接口预检失败，已停止长文生成。"
+            f" 当前模型 {cfg.get('model')} / {cfg.get('base_url')}："
+            f"{_llm_error_summary(exc)}。请核对 api_key、base_url 是否以 /v1 结尾、模型名是否在该端点可用。"
+        ) from exc
+    preview = str(content).strip()
+    if not preview or preview.lstrip().startswith("<!") or "<html" in preview.lower():
+        raise RuntimeError(
+            "LLM 接口预检失败：返回空内容或 HTML 门户页，而不是 JSON。"
+            f" 当前模型 {cfg.get('model')} / {cfg.get('base_url')}。"
+        )
 
 
 def _llm_error_summary(exc: Exception) -> str:

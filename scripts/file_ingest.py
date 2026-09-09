@@ -10,15 +10,18 @@ from pathlib import Path
 from typing import Iterable
 
 from dependency_bootstrap import ensure_python_dependencies, has_command
-from fetcher import Article, article_from_text
+import json
+
+from fetcher import Article, article_from_text, merge_page_assets
 
 
 TEXT_EXTENSIONS = {".txt", ".md", ".markdown", ".text"}
 HTML_EXTENSIONS = {".html", ".htm"}
+JSON_EXTENSIONS = {".json"}
 PDF_EXTENSIONS = {".pdf"}
 DOCX_EXTENSIONS = {".docx"}
 DOC_EXTENSIONS = {".doc"}
-SUPPORTED_EXTENSIONS = TEXT_EXTENSIONS | HTML_EXTENSIONS | PDF_EXTENSIONS | DOCX_EXTENSIONS | DOC_EXTENSIONS
+SUPPORTED_EXTENSIONS = TEXT_EXTENSIONS | HTML_EXTENSIONS | JSON_EXTENSIONS | PDF_EXTENSIONS | DOCX_EXTENSIONS | DOC_EXTENSIONS
 
 
 def _fallback_title(path: Path) -> str:
@@ -129,6 +132,135 @@ def _extract_html(path: Path) -> str:
     return (trafilatura.extract(raw, include_comments=False, include_tables=True, favor_recall=True) or "").strip()
 
 
+
+def _block_text(block: dict) -> str:
+    kind = str(block.get("type") or "").strip().lower()
+    text = str(block.get("text") or block.get("content") or "").strip()
+    if not text:
+        return ""
+    if kind == "heading":
+        try:
+            level = int(block.get("level") or 2)
+        except (TypeError, ValueError):
+            level = 2
+        level = min(max(level, 1), 6)
+        return "#" * level + " " + text
+    if kind == "list":
+        items = block.get("items") if isinstance(block.get("items"), list) else []
+        lines = [str(item).strip() for item in items if str(item).strip()]
+        if not lines:
+            lines = [part.strip() for part in text.split("\n") if part.strip()]
+        rendered = []
+        for part in lines:
+            if part.startswith(("- ", "* ", "1.", "2.", "3.")):
+                rendered.append(part)
+            else:
+                rendered.append("- " + part)
+        return "\n".join(rendered)
+    return text
+
+
+def _article_payload(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        return {}
+    article = payload.get("article")
+    if isinstance(article, dict):
+        return article
+    if any(key in payload for key in ("body_blocks", "title", "source_url", "media_assets")):
+        return payload
+    return {}
+
+
+def article_from_monitoring_json(
+    payload: dict,
+    *,
+    url: str = "",
+    title: str = "",
+    author: str = "",
+) -> Article:
+    """Convert a monitoring.article.v2 export into Article plus registered media."""
+    article_data = _article_payload(payload)
+    if not article_data:
+        raise ValueError("JSON 不是可识别的文章导出：需要 article 对象或 body_blocks")
+    blocks = article_data.get("body_blocks") or article_data.get("blocks") or []
+    if not isinstance(blocks, list) or not blocks:
+        raise ValueError("文章 JSON 缺少 body_blocks")
+    lines = []
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        value = _block_text(block)
+        if value:
+            lines.append(value)
+            lines.append("")
+    text = "\n".join(lines).strip()
+    if not text:
+        raise ValueError("文章 JSON 的 body_blocks 没有可提取正文")
+    source_url = (
+        url.strip()
+        or str(article_data.get("source_url") or article_data.get("url") or "").strip()
+    )
+    article = article_from_text(
+        text,
+        url=source_url,
+        title=title.strip() or str(article_data.get("title") or "").strip(),
+        author=author.strip() or str(article_data.get("author") or "").strip(),
+    )
+    images = []
+    videos = []
+    for index, item in enumerate(article_data.get("media_assets") or [], 1):
+        if not isinstance(item, dict):
+            continue
+        src = str(item.get("url") or item.get("src") or "").strip()
+        if not src:
+            continue
+        media_type = str(item.get("type") or "image").strip().lower()
+        role = str(item.get("role") or item.get("asset_role") or "").strip().lower()
+        if media_type == "image" and not role:
+            caption = str(item.get("caption") or item.get("alt") or "").lower()
+            role = "chart" if any(token in caption for token in ("chart", "graph", "plot", "图")) else "screenshot"
+        record = {
+            "id": str(item.get("id") or f"media-{index}").strip(),
+            "src": src,
+            "alt": str(item.get("alt") or item.get("caption") or "").strip(),
+            "role": role or ("demo" if media_type == "video" else "screenshot"),
+            "language": str(item.get("language") or "").strip(),
+            "caption": str(item.get("caption") or item.get("alt") or "").strip(),
+            "reader_note": str(item.get("reader_note") or "").strip(),
+            "source_page": source_url,
+            "embed": bool(item.get("embed")),
+        }
+        if media_type == "video":
+            videos.append(record)
+        else:
+            images.append(record)
+    merge_page_assets(article, {
+        "media_discovery": {
+            "status": "completed",
+            "method": "user_json_export",
+            "page_url": source_url,
+            "registered_count": len(images) + len(videos),
+            "missing_count": 0,
+        },
+        "images": images,
+        "videos": videos,
+    })
+    discovery = article_data.get("media_discovery")
+    if isinstance(discovery, dict):
+        article.media_discovery = {
+            **discovery,
+            "status": "completed",
+            "method": str(discovery.get("method") or discovery.get("source") or "user_json_export"),
+        }
+    else:
+        article.media_discovery = {
+            "status": "completed",
+            "method": "user_json_export",
+            "page_url": source_url,
+        }
+    return article
+
+
 def article_from_file(
     file_path: str,
     *,
@@ -146,6 +278,12 @@ def article_from_file(
 
     extracted_title = ""
     extracted_author = ""
+    if suffix in JSON_EXTENSIONS:
+        try:
+            payload = json.loads(_read_text(path))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"本地 JSON 不是合法文件：{path}（{exc}）") from exc
+        return article_from_monitoring_json(payload, url=url, title=title, author=author)
     if suffix in TEXT_EXTENSIONS:
         text = _read_text(path).strip()
     elif suffix in HTML_EXTENSIONS:

@@ -276,6 +276,56 @@ def _normalize_listening_cards(raw_cards: Any, media_by_id: dict[str, dict], med
     return cards
 
 
+def _normalize_visuals(raw_visuals: Any) -> list[dict]:
+    """Coerce common LLM visual aliases into renderer/audit schemas."""
+    visuals = []
+    if not isinstance(raw_visuals, list):
+        return visuals
+    for raw in raw_visuals:
+        if not isinstance(raw, dict):
+            continue
+        item = dict(raw)
+        visual_type = str(item.get("type") or "").strip().lower()
+        data = dict(item.get("data") or {}) if isinstance(item.get("data"), dict) else {}
+        if visual_type == "strategy_tabs":
+            strategies = data.get("strategies")
+            if not isinstance(strategies, list):
+                strategies = data.get("items") if isinstance(data.get("items"), list) else []
+            data["strategies"] = [row for row in strategies if isinstance(row, dict)]
+            data.pop("items", None)
+        elif visual_type == "compare_table":
+            rows = []
+            for row in data.get("rows") or []:
+                if isinstance(row, dict):
+                    cells = row.get("cells")
+                    if isinstance(cells, list):
+                        rows.append(cells)
+                    elif row.get("label") is not None:
+                        rows.append([row.get("label"), *list(row.get("values") or [])])
+                elif isinstance(row, (list, tuple)):
+                    rows.append(list(row))
+            data["rows"] = rows
+        elif visual_type == "delta_table":
+            rows = []
+            raw_rows = data.get("rows") if isinstance(data.get("rows"), list) else data.get("items")
+            for row in raw_rows or []:
+                if not isinstance(row, dict):
+                    continue
+                rows.append({
+                    "label": row.get("label") or row.get("name") or "",
+                    "baseline": row.get("baseline") or row.get("old") or "",
+                    "current": row.get("current") or row.get("new") or "",
+                    "change": row.get("change") or "",
+                    "direction": row.get("direction") or "flat",
+                    "tone": row.get("tone") or "neutral",
+                })
+            data["rows"] = rows
+            data.pop("items", None)
+        item["data"] = data
+        visuals.append(item)
+    return visuals
+
+
 def normalize_distilled(distilled: dict, article: Any) -> dict:
     """给旧/新 JSON 补齐证据字段，并降低无证据结论的强度。"""
     if not isinstance(distilled, dict):
@@ -395,6 +445,7 @@ def normalize_distilled(distilled: dict, article: Any) -> dict:
             key = url_key(str(raw_url or ""))
             if key:
                 registered_source_urls.add(key)
+    data["visuals"] = _normalize_visuals(data.get("visuals"))
     number_stories = _normalize_number_stories(
         data.get("number_stories"), media_by_id, registered_source_urls
     )

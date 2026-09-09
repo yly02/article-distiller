@@ -1362,6 +1362,19 @@ def _render_visual(v: dict) -> str:
         rows = data.get("rows", [])
         column_roles = data.get("column_roles", [])
         layout = str(data.get("layout") or "stacked").strip().lower()
+
+        def _compare_cells(row):
+            if isinstance(row, dict):
+                cells = row.get("cells")
+                if isinstance(cells, list):
+                    return cells
+                if row.get("label") is not None:
+                    return [row.get("label"), *list(row.get("values") or [])]
+                return []
+            if isinstance(row, (list, tuple)):
+                return list(row)
+            return []
+
         if layout == "matrix":
             parts.append('<div class="cmp-scroll"><table class="cmp-table"><thead><tr>')
             for index, header in enumerate(headers):
@@ -1370,8 +1383,11 @@ def _render_visual(v: dict) -> str:
                 parts.append(f'<th{tone_class}>{_esc(header)}</th>')
             parts.append('</tr></thead><tbody>')
             for row in rows:
+                cells = _compare_cells(row)
+                if not cells:
+                    continue
                 parts.append('<tr>')
-                for index, cell in enumerate(row):
+                for index, cell in enumerate(cells):
                     tone = _visual_tone(column_roles[index] if index < len(column_roles) else "")
                     tone_class = f' class="cmp-tone-{tone}"' if tone else ""
                     parts.append(f'<td{tone_class}>{_esc(cell)}</td>')
@@ -1381,13 +1397,14 @@ def _render_visual(v: dict) -> str:
             layout_class = "paired" if layout == "paired" else "stacked"
             parts.append(f'<div class="comparison-list {layout_class}">')
             for row in rows:
-                if not row:
+                cells = _compare_cells(row)
+                if not cells:
                     continue
-                topic = row[0]
+                topic = cells[0]
                 parts.append('<section class="comparison-row">')
                 parts.append(f'<div class="comparison-topic">{_esc(topic)}</div>')
                 parts.append('<dl class="comparison-pairs">')
-                for index, cell in enumerate(row[1:], 1):
+                for index, cell in enumerate(cells[1:], 1):
                     label = headers[index] if index < len(headers) else f"对比项 {index}"
                     tone = _visual_tone(column_roles[index] if index < len(column_roles) else "")
                     tone_class = f" cmp-tone-{tone}" if tone else ""

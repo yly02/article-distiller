@@ -195,11 +195,11 @@ def _enrich_dynamic_media(args, article: Article) -> None:
     if getattr(args, "no_dynamic_media", False):
         article.media_discovery = {"status": "skipped", "reason": "用户显式关闭动态媒体发现"}
         return
-    if urlsplit(str(article.url or "")).scheme not in {"http", "https"}:
-        article.media_discovery = {"status": "skipped", "reason": "本地文件不需要动态网页媒体发现"}
-        return
     prior = article.media_discovery if isinstance(article.media_discovery, dict) else {}
     if prior.get("status") == "completed":
+        return
+    if urlsplit(str(article.url or "")).scheme not in {"http", "https"}:
+        article.media_discovery = {"status": "skipped", "reason": "本地文件不需要动态网页媒体发现"}
         return
     try:
         ensure_python_dependencies(["playwright"])

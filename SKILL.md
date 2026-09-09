@@ -24,7 +24,7 @@ python3 <skill-root>/scripts/run.py --check
 python3 <skill-root>/scripts/run.py --check --no-llm
 ```
 
-输入支持 URL、TXT、Markdown、HTML、PDF、DOCX 和 DOC。依赖缺失时入口会尝试用当前解释器安装；无法自动处理的 Python、浏览器、LibreOffice、OCR 或 API 配置必须给出可执行提示，不能静默降级。完整参数、环境变量、缓存和文件输入行为见 [references/cli.md](references/cli.md)。
+输入支持 URL、TXT、Markdown、HTML、JSON 文章导出、PDF、DOCX 和 DOC。监控系统导出的 `monitoring.article.v2` JSON 可直接作为输入，不必先转成 Markdown。依赖缺失时入口会尝试用当前解释器安装；无法自动处理的 Python、浏览器、LibreOffice、OCR 或 API 配置必须给出可执行提示，不能静默降级。完整参数、环境变量、缓存和文件输入行为见 [references/cli.md](references/cli.md)。
 
 第一次使用或需要确认输入方式、产物和失败边界时，读取 [examples/workflows.md](examples/workflows.md)。需要为具体材料选择叙事结构、媒体和交互组件时，按材料类型读取 [examples/casebook.md](examples/casebook.md) 中最接近的案例。示例用于说明决策，不是固定文章模板，也不能作为事实来源。
 
@@ -32,7 +32,7 @@ python3 <skill-root>/scripts/run.py --check --no-llm
 
 ## 工作流
 
-1. 读取原文、官方附件、相关仓库和必要的独立来源。网页抓取或媒体发现受阻时，先解决抓取，或使用浏览器限定到文章容器导出正文与 `page-assets.json`；不能基于空正文写作。
+1. 读取原文、官方附件、相关仓库和必要的独立来源。网页抓取或媒体发现受阻时，先解决抓取，或使用浏览器限定到文章容器导出正文与 `page-assets.json`；用户已提供含正文和媒体的文章 JSON 时，直接使用该导出，不要重复扒页。不能基于空正文写作。
 2. 建立原子主张、数字、实验、案例、来源和未知项组成的研究账本。只有实际读取且独立于发布方的材料才允许形成 `cross_checked`。
 3. 先确定唯一中心问题、核心机制、目标读者、标题承诺、真实开头锚点和章节推进，再写正文。材料足够时优先搭出 5-8 个有独立任务的章节；材料较薄时宁可保留 3-4 节，也不要为了凑数拆空段。高优先级主张必须进入公开内容，或记录具体舍弃理由。
 4. 根据读者要解决的问题选择正文、来源媒体或交互组件。每个章节通常只有一个主视觉；同一事实不得用正文、大表格、数字卡和原图重复铺陈。原页存在多个能力不同的演示时，按“能力覆盖”组合精选媒体，不得为了省篇幅一刀切只留一个；开头依赖的首屏视频必须采用，或记录具体、可核对的省略理由。

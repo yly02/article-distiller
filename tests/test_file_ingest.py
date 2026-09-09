@@ -60,6 +60,43 @@ def test_docx_ingest_preserves_paragraphs_tables_and_overrides():
         assert overridden.author == "覆盖作者"
 
 
+
+def test_monitoring_json_ingest_registers_body_and_media():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        path = Path(temp_dir) / "article.review.json"
+        payload = {
+            "schema_version": "monitoring.article.v2",
+            "article": {
+                "title": "芯片对照研究",
+                "author": "Venkat Somala",
+                "source_url": "https://epoch.ai/publications/example",
+                "body_blocks": [
+                    {"type": "heading", "level": 2, "text": "结论"},
+                    {"type": "paragraph", "text": "华为产量仍落后。"},
+                    {"type": "list", "text": "HBM 是瓶颈"},
+                ],
+                "media_assets": [
+                    {
+                        "id": "media-3",
+                        "type": "image",
+                        "url": "https://epoch.ai/chart.png",
+                        "alt": "产量对照图",
+                        "caption": "产量对照图",
+                    }
+                ],
+                "media_discovery": {"status": "completed", "source": "profile-html"},
+            },
+        }
+        path.write_text(__import__("json").dumps(payload, ensure_ascii=False), encoding="utf-8")
+        article = article_from_file(str(path))
+        assert "华为产量仍落后" in article.text
+        assert article.title == "芯片对照研究"
+        assert article.url == "https://epoch.ai/publications/example"
+        assert article.media_discovery.get("status") == "completed"
+        assert article.media_assets[0]["id"] == "media-3"
+        assert article.media_assets[0]["asset_role"] == "chart"
+
+
 def test_direct_local_path_and_unsupported_file_message():
     with tempfile.TemporaryDirectory() as temp_dir:
         source = Path(temp_dir) / "article.md"
@@ -114,6 +151,7 @@ def test_dependency_failure_explains_recovery_command():
 if __name__ == "__main__":
     test_pdf_without_text_layer_explains_ocr_requirement()
     test_docx_ingest_preserves_paragraphs_tables_and_overrides()
+    test_monitoring_json_ingest_registers_body_and_media()
     test_direct_local_path_and_unsupported_file_message()
     test_dependency_failure_explains_recovery_command()
     print("file ingest tests passed")

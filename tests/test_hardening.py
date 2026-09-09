@@ -752,6 +752,43 @@ def test_semantic_coverage_accepts_generated_integration_result_paraphrase():
     audit = audit_distilled(distilled, research, ("full",), strict_editorial=True)
     assert audit["metrics"]["semantically_missing_high_claim_ids"] == []
 
+
+def test_semantic_coverage_accepts_numeric_paraphrase_without_claim_phrase():
+    research = {
+        "claims": [
+            {
+                "id": "c22",
+                "claim": "若只用国产HBM，华为算力产出到2028年可能仍约等于Nvidia的1%。",
+                "claim_kind": "metric",
+                "importance": "high",
+            }
+        ]
+    }
+    distilled = complete_draft("国产HBM路径", ["c22"])
+    for index, section in enumerate(distilled["sections"], 1):
+        section["id"] = f"s{index}"
+    distilled["sections"][0]["content"] = (
+        "只用国产HBM，到2028年仍可能约等于Nvidia的1%。"
+    )
+    audit = audit_distilled(distilled, research, ("full",), strict_editorial=True)
+    assert audit["metrics"]["semantically_missing_high_claim_ids"] == []
+
+
+
+def test_serialize_draft_never_raises_on_large_payload():
+    import distiller
+    draft = complete_draft("超长草稿")
+    draft["sections"] = [
+        {"id": f"s{i}", "heading": f"第{i}节", "content": "正文内容。" * 400}
+        for i in range(1, 16)
+    ]
+    serialized = distiller._serialize_draft(draft, max_chars=20000)
+    assert serialized
+    parsed = __import__("json").loads(serialized)
+    assert isinstance(parsed, dict)
+    assert parsed.get("draft_truncated_for_review") is True
+
+
 def test_response_format_retry_boundary():
     class ApiError(Exception):
         def __init__(self, message, status_code):

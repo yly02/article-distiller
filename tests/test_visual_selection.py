@@ -90,6 +90,87 @@ def test_oversized_matrix_gets_restructure_warning():
     assert any("矩阵表格过长" in item for item in audit["warnings"])
 
 
+
+def test_visual_aliases_are_normalized_to_renderer_schema():
+    from evidence import normalize_distilled
+    payload = base_payload()
+    payload["visuals"] = [
+        {
+            "type": "compare_table",
+            "title": "规格",
+            "after_section_id": "measurement",
+            "data": {
+                "layout": "matrix",
+                "headers": ["规格", "A", "B"],
+                "rows": [{"cells": ["速度", "慢", "快"]}],
+            },
+        },
+        {
+            "type": "strategy_tabs",
+            "title": "策略",
+            "after_section_id": "measurement",
+            "data": {
+                "items": [{
+                    "label": "甲",
+                    "target": "对象",
+                    "mechanism": "机制",
+                    "expected_effect": "效果",
+                    "open_questions": "限制",
+                    "tone": "primary",
+                }],
+                "boundary": "边界",
+            },
+        },
+        {
+            "type": "delta_table",
+            "title": "变化",
+            "after_section_id": "measurement",
+            "data": {
+                "baseline_label": "前",
+                "current_label": "后",
+                "items": [{
+                    "name": "差距",
+                    "old": "10",
+                    "new": "2",
+                    "change": "收窄",
+                    "direction": "down",
+                    "tone": "primary",
+                }],
+                "boundary": "边界",
+            },
+        },
+    ]
+    normalized = normalize_distilled(payload, ARTICLE)
+    assert normalized["visuals"][0]["data"]["rows"] == [["速度", "慢", "快"]]
+    assert normalized["visuals"][1]["data"]["strategies"][0]["label"] == "甲"
+    assert "items" not in normalized["visuals"][1]["data"]
+    assert normalized["visuals"][2]["data"]["rows"][0]["label"] == "差距"
+    html = render_html(ARTICLE, normalized)
+    assert ">速度</td>" in html
+    assert ">cells</td>" not in html
+
+
+def test_compare_table_renders_object_rows_with_cells():
+    payload = base_payload()
+    payload["visuals"] = [{
+        "type": "compare_table",
+        "title": "对象行规格表",
+        "after_section_id": "measurement",
+        "data": {
+            "layout": "matrix",
+            "headers": ["规格", "方案甲", "方案乙"],
+            "rows": [
+                {"cells": ["速度", "慢", "快"]},
+                {"cells": ["成本", "高", "低"]},
+            ],
+        },
+    }]
+    html = render_html(ARTICLE, payload)
+    assert ">速度</td>" in html
+    assert ">快</td>" in html
+    assert ">cells</td>" not in html
+
+
 def test_semantic_tones_render_for_tables_and_stats():
     payload = base_payload()
     payload["visuals"] = [

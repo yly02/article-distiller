@@ -93,3 +93,13 @@ python3 <skill-root>/scripts/run.py \
 事件、产品、论文、调查和机制解释应选择不同的章节原型。每一节必须增加新事实、新区别、新机制或新后果；如果删掉一节不影响中心论证，这一节就不该存在。
 
 真实材料的结构与视觉选择实例见 [casebook.md](casebook.md)。按当前材料选择最接近的 1-3 个案例即可，不要把案例库全部加载或机械拼接。
+
+## 例 5：监控 JSON 直接生成 HTML
+
+用户已经用脚本把原文正文和媒体导出为 JSON：
+
+```bash
+python3 <skill-root>/scripts/run.py article.review.json -o output/article
+```
+
+JSON 需包含 `article.body_blocks` 与 `article.media_assets`。系统应跳过网页抓取和动态媒体发现，直接进入研究、写作和审校。不要再手工转成 Markdown，也不要重复打开原网页点标签。

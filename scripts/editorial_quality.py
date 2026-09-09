@@ -682,11 +682,13 @@ def _audit_claim_against_corpus(claim_id: str, claim_text: str, corpus: str) -> 
                     if anchor in _semantic_normalize(clause)
                 )
             )
+        numeric_anchor = bool(exact_terms) and not missing_exact and bool(re.search(r"\d", clause))
         matched = not missing_exact and (
             signatures_matched
             or ratio >= threshold
             or (not grams and bool(exact_terms))
             or metric_equivalent
+            or (numeric_anchor and ratio >= 0.08)
         )
         matched_terms = exact_terms + matched_grams
         missing_terms = missing_exact + ([term for term in grams if term not in normalized_corpus] if not matched else [])
