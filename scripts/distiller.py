@@ -85,10 +85,10 @@ FULL_SYSTEM_PROMPT = _COMMON_MODE_RULES + _FULL_VOICE_GUIDE + """
 严格输出：
 {
   "distilled_title": "从真实人物、动作、冲突或结果中提炼的营销标题；足够吸引点击，但不编造事实",
-  "one_liner": "首屏导语；事件型材料用 1-2 句交代谁、何时、何地、做了什么、结果怎样",
+  "one_liner": "首屏导语，控制在 40-70 字；只交代谁做了什么、核心结果是什么，细节数字放到第一节",
   "category_tags": ["3-5 个归档型短标签，如主体、产品家族、技术领域和应用领域"],
   "quick_scan": ["严格 3 条、每条 35-60 字、合计不超过 180 字；依次回答它是什么/变了什么、为什么值得看/怎么起作用、读者最后该怎么判断或使用；每条写成直接回答读者的完整句子，避免‘本文、当前材料、审计、独立评测、不能据此推出’等内部口吻，必要限制只保留一句贴近结论的自然表达"],
-  "recommendation_reason": "为什么值得读，不是摘要",
+  "recommendation_reason": "可留空；不要写成首屏第二段摘要，判断框架写进第一节",
   "source_bias_declaration": "作者、利益关系、样本和来源局限",
   "narrative_plan": {
     "target_reader": "本篇具体面向哪类 AI 初学者，以及他们已有和缺少的认知",
@@ -152,7 +152,7 @@ FULL_SYSTEM_PROMPT = _COMMON_MODE_RULES + _FULL_VOICE_GUIDE + """
   "evidence_gallery": [{"media_id": "已登记媒体 id", "caption": "证据图说明", "claim_ids": ["claim id"]}],
   "fact_check": [{"claim": "关键主张", "verdict": "确认|原文声称|交叉验证|存疑|夸大|无法核实", "note": "理由", "evidence": [{"url": "输入中真实 URL", "source_type": "original|official|supplemental|independent", "publisher": "发布者", "quote": "短引文", "support": "支持什么"}]}],
   "action_card": {"items": ["行动建议"], "code_block": "可选"},
-  "takeaway_list": ["行动导向结论"],
+  "takeaway_list": [],
   "further_reading": [{"title": "补充材料的准确标题", "url": "输入中已读取且确实有助于继续理解的真实 URL"}],
   "site_note": "给读者看的 1-2 句来源属性与关键证据边界，不写核查过程",
   "source_notes": "来源与可信度说明",
@@ -166,7 +166,7 @@ FULL_SYSTEM_PROMPT = _COMMON_MODE_RULES + _FULL_VOICE_GUIDE + """
 - transition_hook 全文通常使用 3-5 次，只问下一节确实会回答的问题；下一标题可压缩重述但不得逐字复制，不编造悬念，最后一节通常留空。
 - distilled_title 可以从原题与证据材料中重新选择最有点击动机的事实角度，允许使用冲突、反差、后果和口语化表达；但 title_contract.recognition_anchor 必须逐字出现在标题前半句，陌生项目名不能隐去其知名归属方。标题承诺必须在首屏兑现，不能编造人物、动作、数字或结果。
 - 产品发布若有明确、可核验且构成真实点击理由的新规格，标题优先写具体规格，不用“全面升级”“更可控”等抽象判断替代。多个同类上限可靠合计后进入标题时，首屏必须立刻拆回原始组成、单位和适用口径。
-- 新闻、案件和事件型材料的 one_liner 与第一节开头必须先交代谁、何时、何地、做了什么、结果怎样，再进入证据、机制与边界。
+- 新闻、案件和事件型材料的 one_liner 与第一节开头必须先交代谁、何时、何地、做了什么、结果怎样，再进入证据、机制与边界。one_liner 保持短句，完整数字、口径和判断框架写进第一节，不要在标题下再堆一段摘要。
 - 默认读者不具备 AI 技术背景。首次专有名词、缩写、指标和机制先用人话说明作用，再给准确术语与条件；读者不查外部资料也应能复述主线。
 - 可用来源媒体含 audio 时，listening_cards 只能引用其中登记的 media_id；每条曲目保留真实提示词，给出可被实际听见的重点，并明确官方精选样曲的证据边界。没有登记音频就留空，不补外部播放器。
 - narrative_plan 必须填写 target_reader、reader_tension、title_contract、opening_anchor、opening_sequence、reader_stake、resonance_basis、stance、reader_takeaway、core_mechanism、distinctive_insight 和 chapter_system，并把 central_question、section_logic、closing_answer 组成内部阅读契约。title_contract 只保留一个点击理由并写清证据边界；opening_sequence 必须在首屏完成；chapter_system 的 chapters 必须与 sections id 一一对应。opening_anchor 与 resonance_basis 必须来自已读取材料，reader_stake 必须具体到判断、选择、成本或机会，stance 必须说明依据和改变条件。core_mechanism 必须是一句能解释“为什么”的因果关系；每一节只能证明、解释、限制或应用它。独特见解必须来自材料中的机制、矛盾、取舍或后果，并由正文完整论证，不能是通用行业口号。
@@ -195,7 +195,7 @@ FULL_SYSTEM_PROMPT = _COMMON_MODE_RULES + _FULL_VOICE_GUIDE + """
 - strategy_tabs 包含2至6个平行方案；数组字段必须叫 strategies，不要用 items。每项必须有 label、target、mechanism、expected_effect、open_questions 和语义 tone，并提供统一 boundary。
 - compare_table.rows 必须是二维数组，例如 [["规格","A","B"]]，不要写成 {"cells":[...]}。matrix 适合固定列名的规格对照。
 - delta_table.rows 必须是对象数组，字段为 label、baseline、current、change、direction、tone；不要用 items、old、new。
-- action_card 与 takeaway_list 不得复述同一组建议；内容相近时只保留一种，另一项输出空结构。
+- action_card 与 takeaway_list 默认留空。结尾已经回答开头问题时，不要再做一份打勾清单重复速览和结论。
 - further_reading 只收录本次实际读取、能补充实现细节或独立证据的 1-5 条材料；不重复主材料，不放搜索结果页，不用发布方名称代替材料标题。完整文章页末会把主材料、延伸阅读和简短来源说明统一排成资料区。
 - further_reading 的 title 使用准确、自然的中文标题，必要时保留论文、模型、机构或产品的官方专名；不能直接把一串英文标题端给中文读者，也不能为了中文化改变原题含义。
 - site_note 是发布页“本站说明”，只用 1-2 句交代会改变读者判断的来源属性与证据边界；不写“本次读取了、核查了、抓取了”等工作过程。完整审计仍放在 `research_ledger`、`fact_check`、`source_notes` 和 `editorial_quality`，这些字段只供内部运行时追溯，禁止渲染到 HTML 或来源区。

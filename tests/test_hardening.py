@@ -354,6 +354,10 @@ def test_renderer_hides_audit_explanations_from_public_html():
     assert "媒体对账通过" not in rendered
     assert "cross_checked" not in rendered
     assert "audit.example" not in rendered
+    assert "查看主材料" not in rendered
+    assert 'class="source-panel"' in rendered
+    assert 'href="https://example.com/a"' not in rendered
+    assert "Example" in rendered
 
 
 class FakeCompletions:

@@ -16,6 +16,8 @@ import html
 import re
 from typing import Any
 
+from urllib.parse import urlsplit
+
 from fetcher import Article
 
 
@@ -94,6 +96,9 @@ def _render_prose_paragraphs(value: Any, term_refs: list[dict] | None = None) ->
     rendered = []
     used_targets: set[str] = set()
     for paragraph in paragraphs:
+        if paragraph.startswith("<blockquote ") or paragraph.startswith("<aside "):
+            rendered.append(paragraph)
+            continue
         normalized = re.sub(r"\s*\n\s*", " ", paragraph)
         prose = _render_text_with_term_markers(normalized, term_refs or [], used_targets)
         rendered.append(f"<p>{prose}</p>")
@@ -986,6 +991,32 @@ def _render_category_tags(tags: list) -> str:
     return f'<div class="category-tags">{chips}</div>'
 
 
+def _source_outlet_name(article: Article) -> str:
+    """Return a reader-facing source name, not the original headline."""
+    host = (urlsplit(str(article.url or "")).hostname or "").lower()
+    host = host[4:] if host.startswith("www.") else host
+    known = {
+        "epoch.ai": "Epoch AI",
+        "openai.com": "OpenAI",
+        "blog.google": "Google",
+        "anthropic.com": "Anthropic",
+        "nvidia.com": "Nvidia",
+        "huawei.com": "Huawei",
+        "arxiv.org": "arXiv",
+        "github.com": "GitHub",
+    }
+    if host in known:
+        return known[host]
+    for suffix, name in known.items():
+        if host.endswith("." + suffix):
+            return name
+    if host:
+        label = host.split(".")[0].replace("-", " ").strip()
+        return label.title() if label else "主材料"
+    title = str(article.title or "主材料").strip()
+    return title.rstrip("？?") or title
+
+
 def _render_source_panel(
     article: Article,
     further_reading: list,
@@ -999,16 +1030,12 @@ def _render_source_panel(
     public page.  ``source_note`` is supplied only from the reader-facing
     ``site_note``/bias fields by ``render_html``.
     """
-    primary_title = _esc(article.title or "主材料")
+    primary_title = _esc(_source_outlet_name(article))
     meta = []
     if article.author:
         meta.append(f'<span>{_esc(article.author)}</span>')
     if article.date:
         meta.append(f'<time>{_esc(article.date)}</time>')
-    if article.url:
-        meta.append(
-            f'<a href="{_esc(article.url)}" target="_blank" rel="noopener">查看主材料</a>'
-        )
     source_body = (
         f'<span class="source-title">{primary_title}</span>'
         f'<span class="source-meta">{"".join(meta)}</span>'
@@ -1018,27 +1045,20 @@ def _render_source_panel(
         f'<div class="source-content">{source_body}</div></div>'
     ]
 
-    links = []
-    seen_urls = {str(article.url or "").rstrip("/")}
-    # Do not fall back to fact_check evidence here.  Those records can contain
-    # unverified links and audit-only notes that are not meant for readers.
-    candidates = list(further_reading or [])
-    for item in candidates:
+    extras = []
+    seen_titles = {str(article.title or "").strip()}
+    for item in list(further_reading or []):
         if not isinstance(item, dict):
             continue
-        url = str(item.get("url") or "").strip()
         title = str(item.get("title") or "").strip()
-        normalized = url.rstrip("/")
-        if not url or not title or normalized in seen_urls:
+        if not title or title in seen_titles:
             continue
-        seen_urls.add(normalized)
-        links.append(
-            f'<a href="{_esc(url)}" target="_blank" rel="noopener">{_esc(title)}</a>'
-        )
-    if links:
+        seen_titles.add(title)
+        extras.append(f'<span>{_esc(title)}</span>')
+    if extras:
         rows.append(
             '<div class="source-row"><div class="source-label">延伸</div>'
-            f'<div class="source-content source-links">{"".join(links[:5])}</div></div>'
+            f'<div class="source-content source-links">{"".join(extras[:5])}</div></div>'
         )
     if source_note:
         rows.append(
@@ -1055,10 +1075,8 @@ def _render_bias_note(bias: str) -> str:
 
 
 def _render_rec_reason(reason: str) -> str:
-    """推荐理由：一句话说明为什么值得读，不加标签，自然段。"""
-    if not reason:
-        return ""
-    return f'<p class="rec-reason">{_esc(reason)}</p>'
+    """推荐理由默认不进首屏；它容易重复导语，细节应写进第一节。"""
+    return ""
 
 
 def _section_dom_id(section: dict, index: int) -> str:
@@ -1200,23 +1218,46 @@ def _render_margin_citations(citations: list[dict]) -> str:
     )
 
 
-def _render_analogies_inline(analogies: list) -> str:
-    """Render analogies as a consistently labelled explanatory annotation."""
-    if not analogies:
+def _render_one_analogy(item: dict) -> str:
+    concept = _esc(item.get("concept") or "")
+    analogy = _esc(item.get("analogy") or "")
+    if not analogy:
         return ""
-    parts = []
-    for a in analogies:
-        concept = _esc(a.get("concept") or "")
-        analogy = _esc(a.get("analogy") or "")
-        concept_html = f'<span class="art-analogy-term">{concept}</span>' if concept else ""
-        parts.append(
-            '<blockquote class="art-annotation art-quote">'
-            '<span class="art-annotation-label">类比</span>'
-            f'<div class="art-analogy-copy">{concept_html}'
-            f'<span class="art-analogy-text">{analogy}</span></div>'
-            '</blockquote>'
-        )
-    return "".join(parts)
+    concept_html = f'<span class="art-analogy-term">{concept}</span>' if concept else ""
+    return (
+        '<blockquote class="art-annotation art-quote">'
+        '<span class="art-annotation-label">类比</span>'
+        f'<div class="art-analogy-copy">{concept_html}'
+        f'<span class="art-analogy-text">{analogy}</span></div>'
+        '</blockquote>'
+    )
+
+
+def _render_analogies_inline(analogies: list) -> str:
+    """Render leftover analogies that could not be anchored to a sentence."""
+    return "".join(_render_one_analogy(item) for item in analogies or [])
+
+
+def _insert_analogies_into_content(content: str, analogies: list) -> tuple[str, list]:
+    """Place each analogy after the sentence that first names its concept."""
+    remaining = []
+    text = content or ""
+    for item in analogies or []:
+        if not isinstance(item, dict):
+            continue
+        concept = str(item.get("concept") or "").strip()
+        card = _render_one_analogy(item)
+        if not concept or not card or concept not in text:
+            remaining.append(item)
+            continue
+        idx = text.find(concept)
+        end = idx
+        while end < len(text) and text[end] not in "。！？\n":
+            end += 1
+        if end < len(text) and text[end] in "。！？":
+            end += 1
+        text = text[:end] + "\n\n" + card + "\n\n" + text[end:].lstrip()
+    return text, remaining
 
 
 def _render_concepts_inline(explainers: list) -> str:
@@ -2254,9 +2295,11 @@ def _render_section(
     parts = []
     if title:
         parts.append(f'<h2 id="{_section_dom_id(sec, idx)}">{title}</h2>')
+    leftover_analogies = analogies
     if content:
+        content, leftover_analogies = _insert_analogies_into_content(content, analogies)
         parts.append(_render_prose_paragraphs(content, term_refs))
-    parts.append(_render_analogies_inline(analogies))
+    parts.append(_render_analogies_inline(leftover_analogies))
     # Terminology and full quotations live in the off-flow margin rail.
     parts.append(_render_margin_citations(margin_citations or []))
 
@@ -2351,19 +2394,8 @@ def _render_action_card(card: dict) -> str:
 
 
 def _render_takeaway_list(items: list) -> str:
-    if not items:
-        return ""
-    parts = ['<div class="takeaway-list">']
-    for item in items:
-        clean = item.replace("\u2705", "").strip()
-        parts.append(
-            '<div class="takeaway-item">'
-            '<span class="takeaway-check">\u2705</span>'
-            f'<span>{_esc(clean)}</span>'
-            '</div>'
-        )
-    parts.append('</div>')
-    return "".join(parts)
+    """Takeaway checklists repeat the lede and ending; keep them out of the page."""
+    return ""
 
 
 def _render_quick_scan(items: list) -> str:
