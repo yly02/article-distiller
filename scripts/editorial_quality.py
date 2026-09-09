@@ -42,6 +42,7 @@ SEMANTIC_ALIAS_PATTERNS = (
     (re.compile(r"(?:表示为|成为)"), "成为"),
     (re.compile(r"描述为"), ""),
     (re.compile(r"逐轮(?:进行|推进)"), "逐轮"),
+    (re.compile(r"生成的集成成果"), "生成成果"),
 )
 SEMANTIC_GENERIC_NGRAMS = {
     "这个", "一种", "已经", "可以", "可能", "进行", "通过", "结果", "系统",
@@ -502,13 +503,23 @@ def _public_path(path: tuple[str | int, ...]) -> str:
 
 def _semantic_corpus(distilled: dict, mode: str) -> str:
     """Return publish-facing copy only; audit notes and research ledgers are excluded."""
+    def visible_items(key: str) -> list:
+        return [
+            item for item in _list(distilled.get(key))
+            if not isinstance(item, dict)
+            or (
+                item.get("suppress_visual") is not True
+                and _text(item.get("display_mode")).lower() != "audit_only"
+            )
+        ]
+
     selected: list[Any] = [distilled.get("distilled_title")]
     selected.extend((
         distilled.get("quick_scan"),
         distilled.get("sections"),
-        distilled.get("experiment_ledger"),
-        distilled.get("case_stories"),
-        distilled.get("number_stories"),
+        visible_items("experiment_ledger"),
+        visible_items("case_stories"),
+        visible_items("number_stories"),
         distilled.get("listening_cards"),
         distilled.get("visuals"),
         distilled.get("action_card"),

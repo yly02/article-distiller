@@ -384,7 +384,13 @@ def _content_media(asset: dict, page_url: str) -> dict | None:
     if media_type == "video_poster":
         media_type = "image"
     if media_type == "image" and path.endswith(".svg"):
-        return None
+        # Most SVG files discovered on article pages are logos or interface
+        # icons, but publishers also use SVG for data charts and diagrams.
+        # Keep only explicitly classified explanatory assets so the icon
+        # filter stays conservative without discarding real evidence.
+        explicit_role = str(asset.get("asset_role") or asset.get("role") or "").strip().lower()
+        if explicit_role not in {"chart", "diagram", "screenshot"}:
+            return None
     poster = str(asset.get("poster_url") or "").strip()
     return {
         "type": media_type,

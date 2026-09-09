@@ -467,6 +467,13 @@ def test_article_patch_validation_and_merge():
     assert merged["fact_check"] == original["fact_check"]
     assert draft == original
 
+    flattened = llm._apply_article_patch(
+        draft,
+        {"section_updates": [{"id": "s2", "content": "兼容旧格式的完整章节正文。"}]},
+    )
+    assert flattened["sections"][1]["content"] == "兼容旧格式的完整章节正文。"
+    assert draft == original
+
     invalid_patches = [
         {"set_fields": {"invented_field": "x"}},
         {"section_updates": [{"id": "missing", "set": {"title": "x"}}]},
@@ -482,6 +489,49 @@ def test_article_patch_validation_and_merge():
             pass
         else:
             raise AssertionError(f"invalid patch was accepted: {patch}")
+
+
+def test_audit_only_cases_and_experiments_are_not_public_copy():
+    draft = complete_draft("公开正文", ["hidden-claim"])
+    for index, section in enumerate(draft["sections"], 1):
+        section["id"] = f"s{index}"
+    draft["case_stories"] = [{
+        "id": "case-hidden",
+        "title": "隐藏案例",
+        "setup": "隐藏专属事实",
+        "beats": [{"label": "第一步", "text": "隐藏专属事实"}],
+        "outcome": "隐藏专属事实",
+        "boundary": "仅供内部核验",
+        "source_mode": "reconstruction",
+        "claim_ids": ["hidden-claim"],
+        "display_mode": "audit_only",
+    }]
+    draft["experiment_ledger"] = [{
+        "id": "exp-hidden",
+        "title": "隐藏实验",
+        "question": "隐藏专属事实",
+        "setup": "内部条件",
+        "sample": "内部样本",
+        "models": "内部模型",
+        "metric": "内部指标",
+        "control": "内部对照",
+        "result": "内部结果",
+        "limitations": "内部限制",
+        "claim_ids": ["hidden-claim"],
+        "display_mode": "audit_only",
+    }]
+    research = {
+        "claims": [{
+            "id": "hidden-claim",
+            "claim": "隐藏专属事实",
+            "importance": "high",
+        }]
+    }
+    html = render_html(article_from_text("正文", title="测试"), draft)
+    assert "隐藏案例" not in html
+    assert "隐藏实验" not in html
+    audit = audit_distilled(draft, research, ("full",), strict_editorial=True)
+    assert audit["metrics"]["semantically_missing_high_claim_ids"] == ["hidden-claim"]
 
 
 def test_patch_review_and_full_fallback_modes():
@@ -679,6 +729,28 @@ def test_version_release_paraphrase_and_number_labels():
     audit = audit_distilled(distilled, research, ("full",), strict_editorial=True)
     assert audit["metrics"]["semantically_missing_high_claim_ids"] == []
     assert audit["metrics"]["incomplete_high_metric_story_claim_ids"] == []
+
+
+def test_semantic_coverage_accepts_generated_integration_result_paraphrase():
+    research = {
+        "claims": [
+            {
+                "id": "c20",
+                "claim": "Exa的Codex工作流会对生成的集成成果运行测试。",
+                "claim_kind": "fact",
+                "importance": "high",
+            }
+        ]
+    }
+    distilled = complete_draft("Exa工作流", ["c20"])
+    for index, section in enumerate(distilled["sections"], 1):
+        section["id"] = f"s{index}"
+    distilled["sections"][0]["content"] = (
+        "Exa把这条路径定义成Codex工作流：为选定机会创建pull request并运行测试，"
+        "使生成成果在发布前可供检查。"
+    )
+    audit = audit_distilled(distilled, research, ("full",), strict_editorial=True)
+    assert audit["metrics"]["semantically_missing_high_claim_ids"] == []
 
 def test_response_format_retry_boundary():
     class ApiError(Exception):

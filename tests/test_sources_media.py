@@ -467,6 +467,13 @@ def test_browser_page_assets_feed_sources_and_media_registry():
         "images": [
             {"src": "https://vendor.example/icon_share.svg", "alt": "icon"},
             {
+                "id": "media-vector-chart",
+                "src": "https://cdn.example/frontier-gap.svg",
+                "alt": "Enterprise usage gap chart",
+                "role": "chart",
+                "caption": "企业使用差距变化图",
+            },
+            {
                 "id": "media-chart",
                 "src": "https://cdn.example/results.png",
                 "alt": "English results chart",
@@ -488,13 +495,17 @@ def test_browser_page_assets_feed_sources_and_media_registry():
         }],
     })
 
-    assert result == {"links": 1, "media": 2}
+    assert result == {"links": 1, "media": 3}
     assert article.source_links[0]["url"] == "https://arxiv.org/abs/2506.12605"
     assert article.source_links[0]["origin"] == "page_assets"
-    assert [item["id"] for item in article.media_assets] == ["media-chart", "media-demo"]
+    assert [item["id"] for item in article.media_assets] == [
+        "media-vector-chart", "media-chart", "media-demo",
+    ]
+    assert article.media_assets[0]["url"] == "https://cdn.example/frontier-gap.svg"
     assert article.media_assets[0]["asset_role"] == "chart"
-    assert article.media_assets[0]["language"] == "en"
-    assert article.media_assets[1]["source_type"] == "supplemental_media"
+    assert article.media_assets[1]["asset_role"] == "chart"
+    assert article.media_assets[1]["language"] == "en"
+    assert article.media_assets[2]["source_type"] == "supplemental_media"
 
 
 def test_dynamic_media_discovery_is_automatic_and_failure_is_explicit():
@@ -615,9 +626,8 @@ def test_media_registration_gate_and_rendering():
     html = render_html(article, normalized)
     assert html.count('class="source-media" data-media-id="media-1"') == 1
     assert html.count('class="source-media" data-media-id="media-2"') == 1
-    assert html.count('<details class="evidence-gallery">') == 1
+    assert html.count('<details class="evidence-gallery">') == 0
     assert len(normalized["evidence_gallery"]) == 2
-    assert "查看视频" in html
     assert "素材来源" not in html
     assert ".source-media img { display:block; width:auto; max-width:100%; height:auto; margin:0 auto;" in html
     assert ".source-media img,.source-media video" not in html
@@ -658,6 +668,37 @@ def test_media_registration_gate_and_rendering():
     assert "没有出现在抓取登记" in str(invalid_audit["blockers"])
     assert "不存在的 section id" in str(invalid_audit["blockers"])
     assert "https://attacker.example/fake.jpg" not in render_html(article, normalized_invalid)
+
+
+def test_embedded_video_uses_iframe_instead_of_native_video_source():
+    article = Article(
+        url="https://vendor.example/blog/launch",
+        title="Launch",
+        text="原文",
+        source_links=[],
+        media_assets=[{
+            "id": "media-vimeo",
+            "type": "video",
+            "url": "https://player.vimeo.com/video/1221940240?h=abc",
+            "poster_url": "",
+            "alt": "Deal workspace demo",
+            "asset_role": "demo",
+            "source_url": "https://vendor.example/blog/launch",
+            "source_type": "original_media",
+            "extracted": True,
+            "embed": True,
+        }],
+    )
+    payload = _full_payload()
+    payload["source_media"] = [{
+        "media_id": "media-vimeo",
+        "caption": "交易工作区演示",
+        "after_section_id": "demo",
+    }]
+    normalized = normalize_distilled(payload, article)
+    html = render_html(article, normalized)
+    assert '<iframe src="https://player.vimeo.com/video/1221940240?h=abc"' in html
+    assert '<source src="https://player.vimeo.com/video/1221940240?h=abc">' not in html
 
 
 def test_media_explanation_contract_is_audited_without_breaking_legacy_payloads():

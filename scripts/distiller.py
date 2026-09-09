@@ -476,11 +476,16 @@ def _apply_article_patch(draft: dict, patch: dict) -> dict:
         if not isinstance(update, dict):
             raise ValueError("section_updates 中存在非对象条目")
         section_id = str(update.get("id") or "")
-        fields = update.get("set") or {}
         if not section_id or section_id not in by_id:
             raise ValueError(f"section_updates 引用了不存在的 section id：{section_id or '(空)'}")
         if section_id in seen_ids:
             raise ValueError(f"section_updates 重复修改 section id：{section_id}")
+        fields = update.get("set") or {}
+        if not fields:
+            # Some model responses flatten the requested `set` object and place
+            # section fields beside `id`. Normalize that unambiguous legacy form
+            # before applying the same allow-list validation below.
+            fields = {key: value for key, value in update.items() if key != "id"}
         if not isinstance(fields, dict) or not fields:
             raise ValueError(f"section_updates[{section_id}] 缺少非空 set")
         unknown_section_fields = sorted(set(fields) - set(by_id[section_id]))

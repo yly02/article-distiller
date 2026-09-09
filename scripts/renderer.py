@@ -1259,6 +1259,8 @@ def _visual_tone(value: Any) -> str:
 
 
 def _render_experiment(experiment: dict) -> str:
+    if experiment.get("suppress_visual") is True or experiment.get("display_mode") == "audit_only":
+        return ""
     title = experiment.get("title") or experiment.get("question") or ""
     experiment_id = experiment.get("id") or ""
     question = experiment.get("question") or ""
@@ -1303,6 +1305,8 @@ def _render_experiment(experiment: dict) -> str:
 
 
 def _render_case_story(story: dict) -> str:
+    if story.get("suppress_visual") is True or story.get("display_mode") == "audit_only":
+        return ""
     title = story.get("title") or ""
     setup = story.get("setup") or ""
     beats = [beat for beat in (story.get("beats") or []) if isinstance(beat, dict)]
@@ -2478,7 +2482,18 @@ def render_html(article: Article, distilled: dict) -> str:
 
     action_html = _render_action_card(action_card)
     takeaway_html = _render_takeaway_list(takeaway_list)
-    evidence_gallery_html = _render_evidence_gallery(evidence_gallery)
+    inline_media_ids = {
+        str(item.get("media_id") or "").strip()
+        for item in source_media
+        if isinstance(item, dict)
+        and item.get("registered") is True
+        and str(item.get("media_id") or "").strip()
+    }
+    evidence_gallery_html = _render_evidence_gallery([
+        item for item in evidence_gallery
+        if not isinstance(item, dict)
+        or str(item.get("media_id") or "").strip() not in inline_media_ids
+    ])
     source_panel_html = _render_source_panel(
         article,
         further_reading,

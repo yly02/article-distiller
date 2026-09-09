@@ -695,14 +695,14 @@ def cmd_full(args):
     quality = distilled.get("editorial_quality") if isinstance(distilled.get("editorial_quality"), dict) else {}
     prior_fixes = list(quality.get("language_fixes") or [])
     all_fixes = prior_fixes + normalization_fixes
+    research = distilled.get("research_ledger") if isinstance(distilled.get("research_ledger"), dict) else None
+    normalized_audit = audit_distilled(distilled, research, required_modes, strict_editorial=True)
     distilled["editorial_quality"] = {
         **quality,
         "language_fixes": all_fixes,
         "language_fix_count": len(all_fixes),
         "final_audit": normalized_audit,
     }
-    research = distilled.get("research_ledger") if isinstance(distilled.get("research_ledger"), dict) else None
-    normalized_audit = audit_distilled(distilled, research, required_modes, strict_editorial=True)
     try:
         assert_publishable(normalized_audit, "证据规范化后的文章")
     except ValueError as exc:
