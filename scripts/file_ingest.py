@@ -24,6 +24,21 @@ DOC_EXTENSIONS = {".doc"}
 SUPPORTED_EXTENSIONS = TEXT_EXTENSIONS | HTML_EXTENSIONS | JSON_EXTENSIONS | PDF_EXTENSIONS | DOCX_EXTENSIONS | DOC_EXTENSIONS
 
 
+JSON_COMPLETE_BODY_CHARS = 1500
+
+
+def json_export_is_complete(text: str, blocks: list | None = None) -> bool:
+    """A monitoring JSON is complete only when the body can stand alone."""
+    body = (text or "").strip()
+    if len(body) >= JSON_COMPLETE_BODY_CHARS:
+        return True
+    block_count = 0
+    for block in blocks or []:
+        if isinstance(block, dict) and _block_text(block):
+            block_count += 1
+    return False if block_count < 4 else len(body) >= 800
+
+
 def _fallback_title(path: Path) -> str:
     value = re.sub(r"[_-]+", " ", path.stem).strip()
     return value or "未命名文章"
@@ -246,17 +261,26 @@ def article_from_monitoring_json(
         "videos": videos,
     })
     discovery = article_data.get("media_discovery")
+    complete = json_export_is_complete(text, blocks)
+    method = "user_json_export"
     if isinstance(discovery, dict):
+        method = str(discovery.get("method") or discovery.get("source") or method)
+    if complete:
         article.media_discovery = {
-            **discovery,
+            **(discovery if isinstance(discovery, dict) else {}),
             "status": "completed",
-            "method": str(discovery.get("method") or discovery.get("source") or "user_json_export"),
+            "method": method,
+            "page_url": source_url,
+            "export_completeness": "complete",
         }
     else:
         article.media_discovery = {
-            "status": "completed",
-            "method": "user_json_export",
+            "status": "incomplete_export",
+            "method": method,
             "page_url": source_url,
+            "export_completeness": "thin",
+            "reason": "导出正文过短，不能当作完整原文",
+            "text_chars": len(text),
         }
     return article
 

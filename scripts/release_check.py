@@ -12,7 +12,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from package_skill import FILES, build
+from package_skill import FILES, packaged_files, build
 
 
 CORE_TESTS = (
@@ -53,7 +53,11 @@ def validate_source(source_root: Path, *, run_tests: bool = True) -> list[str]:
     if "playwright" not in requirements:
         errors.append("requirements.txt 缺少 playwright")
 
-    scan_files = [source_root / relative for relative in FILES if relative.endswith((".py", ".md", ".txt"))]
+    scan_files = [
+        source_root / relative
+        for relative in packaged_files(source_root)
+        if relative.endswith((".py", ".md", ".txt"))
+    ]
     for path in scan_files:
         text = path.read_text(encoding="utf-8")
         if ("/" + "Users/") in text or ("\\" + "Users\\") in text:
@@ -67,7 +71,7 @@ def validate_source(source_root: Path, *, run_tests: bool = True) -> list[str]:
         if forbidden in cli:
             errors.append(f"深度版 CLI 文档含越界功能：{forbidden}")
 
-    for path in (source_root / "scripts").glob("*.py"):
+    for path in (source_root / "scripts").rglob("*.py"):
         try:
             py_compile.compile(str(path), doraise=True)
         except py_compile.PyCompileError as exc:
@@ -127,7 +131,7 @@ def validate_archive(source_root: Path) -> list[str]:
                 errors.append("独立解包 source-only 未生成材料包")
             if "onepager" in output.casefold() or "cards" in output.casefold() or "一页纸" in output:
                 errors.append("独立解包 source-only 仍提示越界输出格式")
-        for relative in FILES:
+        for relative in packaged_files(source_root):
             if not (unpacked / relative).is_file():
                 errors.append(f"发行包缺少：{relative}")
     return errors

@@ -35,6 +35,7 @@ $PY "$SKILL_ROOT/scripts/run.py" report.pdf -o article
 $PY "$SKILL_ROOT/scripts/run.py" report.docx -o article
 $PY "$SKILL_ROOT/scripts/run.py" --from-text raw.md --title "标题" -o article
 $PY "$SKILL_ROOT/scripts/run.py" article.review.json -o article
+# 监控 JSON 只有正文足够独立成文时才跳过扒页；残篇会回抓 source_url
 
 # 无 LLM 配置时先生成 prompt 包，之后渲染深度文章
 $PY "$SKILL_ROOT/scripts/run.py" <URL> --source-only -o pack.json

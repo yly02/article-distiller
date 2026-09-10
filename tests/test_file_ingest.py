@@ -72,8 +72,10 @@ def test_monitoring_json_ingest_registers_body_and_media():
                 "source_url": "https://epoch.ai/publications/example",
                 "body_blocks": [
                     {"type": "heading", "level": 2, "text": "结论"},
-                    {"type": "paragraph", "text": "华为产量仍落后。"},
+                    {"type": "paragraph", "text": '华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。华为在先进封装和 HBM 供给上的产量仍落后，扩产计划不能单独改写 2026 年的算力份额。'},
+                    {"type": "paragraph", "text": "HBM 供给和先进封装能力共同限制了追赶速度。"},
                     {"type": "list", "text": "HBM 是瓶颈"},
+                    {"type": "paragraph", "text": "因此 2026 年的份额对比不能外推成 2030 年必然追上。"},
                 ],
                 "media_assets": [
                     {
@@ -89,7 +91,9 @@ def test_monitoring_json_ingest_registers_body_and_media():
         }
         path.write_text(__import__("json").dumps(payload, ensure_ascii=False), encoding="utf-8")
         article = article_from_file(str(path))
-        assert "华为产量仍落后" in article.text
+        assert article.media_discovery.get("status") == "completed"
+        assert article.media_discovery.get("export_completeness") == "complete"
+        assert "产量仍落后" in article.text
         assert article.title == "芯片对照研究"
         assert article.url == "https://epoch.ai/publications/example"
         assert article.media_discovery.get("status") == "completed"
@@ -148,10 +152,35 @@ def test_dependency_failure_explains_recovery_command():
         deps.subprocess.run = original_run
 
 
+def test_thin_monitoring_json_is_not_treated_as_complete():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        path = Path(temp_dir) / "teaser.review.json"
+        payload = {
+            "schema_version": "monitoring.article.v2",
+            "article": {
+                "title": "Utah's Experiment With AI-Driven Prescription Renewals",
+                "author": "Michelle Mello",
+                "source_url": "https://hai.stanford.edu/research/example",
+                "body_blocks": [
+                    {"type": "paragraph", "text": "Utah announced a pilot allowing an autonomous AI agent to renew prescriptions."},
+                    {"type": "paragraph", "text": "The structural problems are real, so the pilot deserves analysis."},
+                ],
+                "media_assets": [],
+                "media_discovery": {"status": "completed", "source": "profile-html"},
+            },
+        }
+        path.write_text(__import__("json").dumps(payload, ensure_ascii=False), encoding="utf-8")
+        article = article_from_file(str(path))
+        assert article.media_discovery.get("status") == "incomplete_export"
+        assert article.media_discovery.get("export_completeness") == "thin"
+        assert "过短" in str(article.media_discovery.get("reason") or "")
+
+
 if __name__ == "__main__":
     test_pdf_without_text_layer_explains_ocr_requirement()
     test_docx_ingest_preserves_paragraphs_tables_and_overrides()
     test_monitoring_json_ingest_registers_body_and_media()
+    test_thin_monitoring_json_is_not_treated_as_complete()
     test_direct_local_path_and_unsupported_file_message()
     test_dependency_failure_explains_recovery_command()
     print("file ingest tests passed")

@@ -143,10 +143,38 @@ def _load_source_snapshot(
     return article, evidence, path
 
 
+def _hydrate_thin_json_export(article: Article) -> Article:
+    """If a monitoring JSON is only a teaser, refetch the live source_url."""
+    discovery = article.media_discovery if isinstance(article.media_discovery, dict) else {}
+    if str(discovery.get("status") or "") != "incomplete_export":
+        return article
+    url = str(article.url or "").strip()
+    if urlsplit(url).scheme not in {"http", "https"}:
+        print("[来源] JSON 导出正文过短，且没有可回抓的网页地址。", file=sys.stderr)
+        return article
+    print(f"[来源] JSON 导出正文过短，正在回抓原文：{url}", file=sys.stderr)
+    fetched = fetch_article(url)
+    fetched_text = str(fetched.text or "").strip()
+    if fetched.error or not fetched_text:
+        print(
+            f"[来源警告] 回抓失败，仍使用 JSON 残篇：{fetched.error or '正文为空'}",
+            file=sys.stderr,
+        )
+        return article
+    if len(fetched_text) <= len(str(article.text or "").strip()):
+        print("[来源警告] 回抓正文没有更完整，仍使用 JSON 导出。", file=sys.stderr)
+        return article
+    if not fetched.title:
+        fetched.title = article.title
+    if not fetched.author:
+        fetched.author = article.author
+    return fetched
+
+
 def _get_article(args) -> Article:
     if args.from_text:
         try:
-            return article_from_file(
+            article = article_from_file(
                 args.from_text,
                 url=args.url or "",
                 title=args.title or "",
@@ -154,15 +182,17 @@ def _get_article(args) -> Article:
             )
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
             sys.exit(f"[错误] {exc}")
+        return _hydrate_thin_json_export(article)
     if args.url and os.path.isfile(os.path.expanduser(args.url)):
         try:
-            return article_from_file(
+            article = article_from_file(
                 args.url,
                 title=args.title or "",
                 author=args.author or "",
             )
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
             sys.exit(f"[错误] {exc}")
+        return _hydrate_thin_json_export(article)
     if getattr(args, "chart_ocr", False):
         return fetch_article(args.url, chart_ocr=True)
     return fetch_article(args.url)
@@ -197,6 +227,9 @@ def _enrich_dynamic_media(args, article: Article) -> None:
         return
     prior = article.media_discovery if isinstance(article.media_discovery, dict) else {}
     if prior.get("status") == "completed":
+        return
+    if prior.get("status") == "incomplete_export":
+        print("[媒体发现] JSON 残篇尚未补成完整原文，跳过动态媒体发现。", file=sys.stderr)
         return
     if urlsplit(str(article.url or "")).scheme not in {"http", "https"}:
         article.media_discovery = {"status": "skipped", "reason": "本地文件不需要动态网页媒体发现"}

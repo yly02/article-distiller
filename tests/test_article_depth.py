@@ -200,6 +200,18 @@ def test_category_tags_are_short_archival_categories():
     assert audit["metrics"]["long_category_tag_indexes"] == [1, 2, 3]
     assert "归档标签必须短平快" in str(audit["blockers"])
 
+def test_recommendation_reason_merges_into_quick_scan_and_takeaway_stays_off():
+    payload = base_payload()
+    payload["recommendation_reason"] = "它能让你看清工作流从帮忙变成受控执行的那条线。"
+    payload["takeaway_list"] = ["先核对来源", "再决定是否采用"]
+    payload["quick_scan"] = ["三家公司已经把日常流程交给模型。", "读者要看的是权限和验收怎么改。"]
+    html = render_html(ARTICLE, payload)
+    assert 'class="rec-reason"' not in html
+    assert 'class="takeaway-list"' not in html
+    assert "从帮忙变成受控执行" in html
+    assert html.index("一分钟速览") < html.index("从帮忙变成受控执行")
+    assert "先核对来源" not in html
+
 
 if __name__ == "__main__":
     test_components_render_after_their_sections_once()
@@ -209,4 +221,5 @@ if __name__ == "__main__":
     test_quick_scan_is_a_real_one_minute_guide()
     test_public_copy_warns_on_audit_tone_but_keeps_natural_boundaries_publishable()
     test_category_tags_are_short_archival_categories()
+    test_recommendation_reason_merges_into_quick_scan_and_takeaway_stays_off()
     print("article depth tests passed")

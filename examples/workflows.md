@@ -102,4 +102,8 @@ python3 <skill-root>/scripts/run.py \
 python3 <skill-root>/scripts/run.py article.review.json -o output/article
 ```
 
-JSON 需包含 `article.body_blocks` 与 `article.media_assets`。系统应跳过网页抓取和动态媒体发现，直接进入研究、写作和审校。不要再手工转成 Markdown，也不要重复打开原网页点标签。
+JSON 需包含 `article.body_blocks`。`media_assets` 可以为空，但不能把空数组理解成“原页没有媒体”。
+
+只有正文足够独立成文时才跳过扒页：正文大约 1500 字以上，或明显不是两三段摘要。若导出只是标题页、列表页或两三段导语，且带有 `source_url`，系统必须回抓原页，不能把残篇当成完整稿。回抓失败时保留 JSON 正文并明确警告，然后才能写作。
+
+完整 JSON 不要再手工转成 Markdown，也不要重复打开原网页点标签。成品版式可对照 [articles/](articles/) 里的 HTML 样例。

@@ -1,21 +1,25 @@
-# Article Analysis
+# article-distiller
 
-面向非技术读者的 AI 深度文章解读 Skill。输入网页链接或本地 TXT、Markdown、HTML、PDF、DOCX、DOC 文件，生成经过研究、写作、主编审校和发布门禁的中文深度文章 HTML。
+面向非技术读者的 AI 深度文章解读 Skill。GitHub 仓库是 [yly02/article-distiller](https://github.com/yly02/article-distiller)，安装后的 Skill 目录名是 `article-distiller`。输入网页链接或本地 TXT、Markdown、HTML、PDF、DOCX、DOC 文件，生成经过研究、写作、主编审校和发布门禁的中文深度文章 HTML。
 
 ## 结构
 
 ```text
 article-distiller/
-|-- SKILL.md                  # 触发范围、执行流程、发布不变量与按需路由
+|-- SKILL.md                  # 触发范围、四步流程、按需路由与硬边界
 |-- README.md                 # 安装、结构与最短使用说明
 |-- examples/
-|   |-- workflows.md         # URL、文件、媒体回灌和手动渲染实例
-|   `-- casebook.md          # 17 篇真实测试文章的结构与视觉选择案例
+|   |-- README.md            # 例子怎么用
+|   |-- workflows.md         # URL、文件、薄 JSON、媒体回灌和手动渲染
+|   |-- casebook.md          # 测试文章的结构与视觉选择案例
+|   `-- articles/            # 可打开的成品 HTML 样例
 |-- references/              # 写作、证据、媒体、视觉与审校的专项规则
 |-- scripts/
 |   |-- run.py               # 唯一公开入口与环境预检
 |   |-- distill.py           # 抓取、研究、写作、审校和输出编排
-|   |-- renderer.py          # 交互 HTML
+|   |-- renderer/            # HTML：样式、页眉、组件、章节组装
+|   |-- distiller/           # LLM 提示词、接口与流水线
+|   |-- editorial_quality/   # 门禁：结构、语义、资产、成稿
 |   `-- release_check.py     # 独立解包与发布检查
 |-- tests/                   # 源码仓库中的行为回归测试，不进入发布 ZIP
 `-- requirements.txt         # 最小 Python 依赖
@@ -29,14 +33,14 @@ article-distiller/
      -> HTML 渲染 -> 媒体对账与浏览器验收
 ```
 
-`SKILL.md` 只保留每次任务都需要的规则；专项细节进入 `references/`，实际操作实例进入 [examples/workflows.md](examples/workflows.md)，真实文章经验进入 [examples/casebook.md](examples/casebook.md)。这样既能看清框架，也不会把全部说明一次塞进模型上下文。
+`SKILL.md` 只保留每次任务都需要的规则；专项细节进入 `references/`，操作实例进入 [examples/workflows.md](examples/workflows.md)，案例决策进入 [examples/casebook.md](examples/casebook.md)，成品样例进入 [examples/articles/](examples/articles/)。
 
 ## 安装
 
 将仓库克隆到 Codex Skills 目录：
 
 ```bash
-git clone https://github.com/yly02/article-analysis.git ~/.codex/skills/article-distiller
+git clone https://github.com/yly02/article-distiller.git ~/.codex/skills/article-distiller
 python3 ~/.codex/skills/article-distiller/scripts/check_environment.py --no-llm
 ```
 
