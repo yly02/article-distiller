@@ -2,13 +2,13 @@
 
 这里记录已经实际跑过、修改过的深度文章。案例的作用是帮助选择叙事结构、证据颗粒度和视觉组件，不是提供可复制的标题或事实。处理新文章时只读取最相近的 1-3 个案例，并重新抓取当前原文；旧案例和对标文章都不能直接进入新文章的研究账本。
 
-可打开的成品 HTML 在 [articles/](articles/)。有成品的案例会在原文后面给出样例链接；没有本地 HTML 的条目只保留决策笔记。
+成品 HTML 放到 [articles/](articles/)，用当前 skill 新跑的结果覆盖。现有条目先当决策笔记，有新成品后再补样例链接。
 
 ## 富媒体与产品发布
 
 ### Seedance 2.5：长叙事、参考与定向编辑
 
-- 原始材料：[字节跳动 Seed 发布文章](https://seed.bytedance.com/zh/blog/%E4%B8%80%E9%95%9C%E6%88%90%E7%89%87-%E9%9A%8F%E5%BF%83%E5%8F%82%E8%80%83-seedance-2-5-%E6%AD%A3%E5%BC%8F%E5%8F%91%E5%B8%83)。成品样例：[articles/seedance-2-5.html](articles/seedance-2-5.html)。
+- 原始材料：[字节跳动 Seed 发布文章](https://seed.bytedance.com/zh/blog/%E4%B8%80%E9%95%9C%E6%88%90%E7%89%87-%E9%9A%8F%E5%BF%83%E5%8F%82%E8%80%83-seedance-2-5-%E6%AD%A3%E5%BC%8F%E5%8F%91%E5%B8%83)。
 - 测试标题：`字节跳动发布 Seedance 2.5：单次生成 30 秒，一次可调用 50 份参考素材`
 - 可借鉴：产品发布标题优先放入读者最关心且已核实的具体规格。开篇用“4 分 22 秒官方短片与单次 30 秒生成”的真实反差建立问题，再按歌手长叙事、早餐时间戳、18 张参考图、白模与绿幕的演示顺序推进；“约束密度”保留为读完案例后的深层结论，不抢在开头解释。
 - 视觉与媒体：从 10 段正文演示中按能力覆盖保留一组互补视频：首屏总览、长叙事案例、时间码操作、参考素材分工和制作流程各自回答不同问题时都可采用，不为追求短小一刀切。把提示词的时间段做成可拖动分镜，把有明确角色分工的参考素材做成可展开参考图谱，把冲突的官方说法做成带来源的紧凑对照；原始提示词只提取关键片段，避免整段倾倒，也不要再用一张通用能力大表和连续数字卡概括全部内容。
@@ -132,7 +132,7 @@
 
 ### OpenAI AI-native 工作流：从帮忙到受控执行
 
-- 原始材料：[OpenAI AI-native company workflows](https://openai.com/index/ai-native-company-workflows/)。成品样例：[articles/openai-ai-native-workflows.html](articles/openai-ai-native-workflows.html)。
+- 原始材料：[OpenAI AI-native company workflows](https://openai.com/index/ai-native-company-workflows/)。
 - 测试标题：`OpenAI拆解三家公司：AI工作流如何从帮忙走到受控执行`
 - 可借鉴：用三家公司各自一个真实动作进入，再比较“人还在回路里帮忙”和“系统开始受控执行”的差别；官方图只解释工作流结构，效果数字保留口径和不能外推的边界。
 - 避免：把演示成效写成普遍业务结果、把三家案例压成一张同构大表，或在来源区暴露本地文件路径。
@@ -141,14 +141,14 @@
 
 ### mono-color：把生图从随机变成色版决策
 
-- 原始材料：[mono-color-skill](https://github.com/yanliudesign/mono-color-skill)。成品样例：[articles/mono-color-skill.html](articles/mono-color-skill.html)。
+- 原始材料：[mono-color-skill](https://github.com/yanliudesign/mono-color-skill)。
 - 测试标题：`mono-color-skill：AI 生图总是差点意思？它把随机创作改成一套设计流程`
 - 可借鉴：先让读者看见“主色版承担大部分面积、强调色只负责关键对比”，再讲规则、目录和提示词；配图必须解释当前段落，不把审计说明、比例免责和空大色块做成正文。
 - 避免：把项目规范写成已验证的印刷测量、一分钟速览只堆术语、或让色块组件压过正文。
 
 ### 华为 / Nvidia 算力对照：2026 年的数字不能当成 2030 年的结局
 
-- 原始材料：[Epoch AI](https://epoch.ai/)。成品样例：[articles/huawei-nvidia-2030.html](articles/huawei-nvidia-2030.html)。
+- 原始材料：[Epoch AI](https://epoch.ai/)。
 - 测试标题：`华为2026年算力不到Nvidia的4%，扩产也难在2030年前追上`
 - 可借鉴：标题放入 Nvidia 和完整口径数字；用紧凑数字条和对照组件解释份额、产能与追赶条件，把限制写在数字旁边而不是文末审计段。
 - 避免：连续三张同构大表、把来源做成可点开的英文问句标题，或把 2026 年快照外推成 2030 年必然结果。
