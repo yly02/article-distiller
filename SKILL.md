@@ -42,12 +42,11 @@ python3 <skill-root>/scripts/run.py --check --no-llm
 
 - 不确定如何处理 URL、本地文件、动态媒体、薄 JSON 或手动渲染：读取 [examples/workflows.md](examples/workflows.md)。
 - 不确定某类文章适合什么开头、章节推进或视觉组件：只读取 [examples/casebook.md](examples/casebook.md) 中最接近的 1-3 个案例；需要看成品版式时打开 [examples/articles/](examples/articles/) 对应 HTML。不要复制案例标题、事实或整套结构。
-- 开始写作：读取 [references/article-depth.md](references/article-depth.md) 和 [references/human-writing.md](references/human-writing.md)。
-- 开始审稿：再读 [references/editorial-patterns.md](references/editorial-patterns.md) 和 [references/chinese-grammar-review.md](references/chinese-grammar-review.md)。
+- 开始写作或审稿：读取 [references/article-depth.md](references/article-depth.md)。语病再读 [references/chinese-grammar-review.md](references/chinese-grammar-review.md)；改门禁再读 [references/editorial-quality.md](references/editorial-quality.md)。
+- 只有人味边界或对标站“不能抄什么”不清楚时，才再读 [references/human-writing.md](references/human-writing.md) 或 [references/editorial-patterns.md](references/editorial-patterns.md)。
 - 扩展来源、深读仓库或检查图片、视频、音频：读取 [references/research-and-media.md](references/research-and-media.md)。
 - 修改主张、来源等级、实验、案例或数字结构：读取 [references/evidence-schema.md](references/evidence-schema.md)。
 - 选择表格、播放器、关系组件或交互：读取 [references/visual-selection.md](references/visual-selection.md)。
-- 修改确定性审校规则：读取 [references/editorial-quality.md](references/editorial-quality.md)。
 - 用户明确授权生成解释配图：读取 [references/article-imagegen.md](references/article-imagegen.md)。默认不调用生图接口。
 - 维护高质量信息源清单：读取 [references/source-registry.md](references/source-registry.md)。
 
