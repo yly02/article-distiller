@@ -8,9 +8,16 @@
 
 对标站只用来核对体裁骨架，不抄标题、章节名、组件或事实。
 
-- 分析稿如 [The Incumbents Are Coming](https://best.xiaohu.ai/article/the-incumbents-are-coming/)：旧预期加 Claudeforce 这类具体例子进入，正文沿原文的 Agent 阶梯和“单据不等于任务”推进，收束写谁在哪类战场成立。不要写成产品能力清单。
-- 研究系统如 [Runway Solaris](https://best.xiaohu.ai/article/introducing-solaris-interface-world-model/)：先定义再给一次操作，再拆机制、命名演示和评测数字；传统路径与新路径对照，评测写清样本和证明了什么。
-- 方法稿如 [Amir Mušić 品牌 Skill](https://best.xiaohu.ai/article/amir-mushich-2095182776249049456/)：用原文失败模式进入，按拆规则、删到锚点、控制权表、批准门推进；过程用视频，状态用静帧；收束给可执行顺序，并写明概念稿不是生产文件。
+- 分析稿如 [The Incumbents Are Coming](https://best.xiaohu.ai/article/the-incumbents-are-coming/) 和 [多人协同 AI 宣言](https://best.xiaohu.ai/article/multiplayer-ai-manifesto/)：旧预期加具体例子进入，正文沿原文框架推进。对标站的「深度解读」只是栏目名，不当写作体裁。
+- 研究系统如 [Runway Solaris](https://best.xiaohu.ai/article/introducing-solaris-interface-world-model/)：先定义再给一次操作，再拆机制、命名演示和评测数字。
+- 论文/临床如 [Rentosertib 衰老时钟](https://best.xiaohu.ai/article/rentosertib-aging-clocks/)：先对齐标题口径和论文口径，再写样本路径、指标在测什么、哪些对比成立、不能外推什么。
+- 官方研究报告如 [OpenAI 研究加速](https://best.xiaohu.ai/article/research-acceleration-inside-openai/)：并进论文/临床，不要另开技术前沿。先写官方定义，原图带着分母和时间，数字旁边写不能证明什么；不抄对标站抒情副题。
+- 同源功能套件如 [Google Workspace Live](https://best.xiaohu.ai/article/google-workspace-live-voice/)：仍按单产品。共用入口 → 按难度拆任务 → 命名演示 → 权限/套餐表，不要因为有多套界面就写成发布会。
+- 多口径速度如 [MiniMax H3 Max](https://best.xiaohu.ai/article/minimax-h3-max-realtime-video/)：推理时延、墙钟、直播时延、吞吐倍率拆开写；高配对基础款用决策表，价格写成运行成本。
+- 发布会/多产品如 [苹果 2026 秋季发布会](https://best.xiaohu.ai/article/apple-september-event-2026/)：一条主线串起全部新品，先可切换全景卡，再逐台深挖；官方数字当官方数字，门槛写在参数旁边。
+- 商业动态如 [OpenAI friction 邮箱](https://best.xiaohu.ai/article/openai-friction-email/)：短，先给矛盾再拆机制，两边评价都写；自绘示意标明不是实测。
+- 方法稿如 [Amir Mušić 品牌 Skill](https://best.xiaohu.ai/article/amir-mushich-2095182776249049456/)：用原文失败模式进入，按步骤、闸门、对照推进；概念稿不是生产文件。
+- 速查手册如 [广告提示词手册](https://best.xiaohu.ai/article/ad-prompt-cheatsheet/) 不是解读文。原文本身是手册才按索引写，不要把发布会或论文改成速查表。
 
 ## 富媒体与产品发布
 
