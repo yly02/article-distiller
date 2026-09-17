@@ -205,7 +205,6 @@ def _render_number_story(item: dict) -> str:
                 f'<div class="number-compare-value">{_esc(change)}</div></div>'
             )
         compare = f'<div class="number-compare">{"".join(compare_parts)}</div>'
-    boundary = str(item.get("boundary") or "").strip()
     mode = "stat" if item.get("display_mode") == "stat" and item.get("complete") is True else "prose"
     main = f'<div class="number-main">{_esc(value)}<small>{_esc(unit)}</small></div>' if value else ""
     if compact:
@@ -221,16 +220,12 @@ def _render_number_story(item: dict) -> str:
             f'<aside class="number-story {mode} compact" data-number-story-id="{_esc(item.get("id") or "")}">'
             f'<div class="number-compact-head">{main}<div class="number-detail">'
             f'<div class="number-title">{_esc(title)}</div>'
-            f'<div class="number-compact-meta">{_esc(compact_meta)}</div></div></div>'
-            f'<div class="number-boundary"><strong>{_esc(reader_label("boundary", "需要注意"))}：</strong>'
-            f'{_esc(boundary)}</div></aside>'
+            f'<div class="number-compact-meta">{_esc(compact_meta)}</div></div></div></aside>'
         )
     return (
         f'<aside class="number-story {mode}" data-number-story-id="{_esc(item.get("id") or "")}">'
         f'{main}<div class="number-detail"><div class="number-title">{_esc(title)}</div>'
-        f'<dl class="number-meta">{meta}</dl>{compare}'
-        f'<div class="number-boundary">{_esc(reader_label("boundary", "这个数字不能说明什么"))}：'
-        f'{_esc(boundary)}</div></div></aside>'
+        f'<dl class="number-meta">{meta}</dl>{compare}</div></aside>'
     )
 
 

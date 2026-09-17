@@ -41,7 +41,8 @@ from distiller import _editorial_review_prompt_for_modes, build_manual_prompt, d
 from renderer import render_html
 from article_imagegen import enhance_article_images
 from evidence import normalize_distilled, normalize_url, url_key
-from editorial_quality import assert_publishable, audit_distilled
+from editorial_quality import audit_distilled
+from editorial_quality.support import demote_soft_blockers, split_audit_blockers
 from language_quality import apply_safe_language_fixes
 from media_audit import assert_rendered_media
 from repository_reader import enrich_github_article
@@ -103,6 +104,23 @@ def _save_source_snapshot(
         "article": article.to_dict(),
         "evidence_articles": [item.to_dict() for item in evidence_articles],
     }
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                stored = json.load(handle)
+            stored_article = stored.get("article") if isinstance(stored.get("article"), dict) else {}
+            stored_evidence = stored.get("evidence_articles") if isinstance(stored.get("evidence_articles"), list) else []
+            same_article = (
+                str(stored_article.get("content_hash") or "") == str(article.content_hash or "")
+                and str(stored_article.get("url") or "") == str(article.url or "")
+            )
+            same_evidence = [str(item.get("url") or "") for item in stored_evidence if isinstance(item, dict)] == [
+                str(getattr(item, "url", "") or "") for item in evidence_articles
+            ]
+            if same_article and same_evidence:
+                return path
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            pass
     with open(temporary, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
     os.replace(temporary, path)
@@ -723,23 +741,38 @@ def cmd_full(args):
             checkpoint_dir=checkpoint_dir,
         ),
         article,
+        research=None,
     )
     distilled, normalization_fixes = apply_safe_language_fixes(distilled)
     quality = distilled.get("editorial_quality") if isinstance(distilled.get("editorial_quality"), dict) else {}
     prior_fixes = list(quality.get("language_fixes") or [])
     all_fixes = prior_fixes + normalization_fixes
     research = distilled.get("research_ledger") if isinstance(distilled.get("research_ledger"), dict) else None
-    normalized_audit = audit_distilled(distilled, research, required_modes, strict_editorial=True)
+    distilled = normalize_distilled(distilled, article, research=research)
+    normalized_audit = audit_distilled(
+        distilled,
+        research,
+        required_modes,
+        strict_editorial=True,
+        semantic_coverage_strict=False,
+    )
+    normalized_audit = demote_soft_blockers(normalized_audit)
     distilled["editorial_quality"] = {
         **quality,
         "language_fixes": all_fixes,
         "language_fix_count": len(all_fixes),
         "final_audit": normalized_audit,
     }
-    try:
-        assert_publishable(normalized_audit, "证据规范化后的文章")
-    except ValueError as exc:
-        sys.exit(f"[质量门禁] {exc}")
+    hard_blockers, _soft = split_audit_blockers(normalized_audit)
+    usable_sections = [
+        item for item in (distilled.get("sections") or [])
+        if isinstance(item, dict) and str(item.get("title") or "").strip() and str(item.get("content") or "").strip()
+    ]
+    structural_ok = bool(str(distilled.get("distilled_title") or "").strip()) and len(usable_sections) >= 3
+    if hard_blockers and not structural_ok:
+        sys.exit("[质量门禁] 编辑审校后的文章未通过质量门禁：" + "；".join(hard_blockers[:6]))
+    if hard_blockers:
+        print("[质量门禁警告] 仍有未消除项，但正文结构完整，继续渲染：" + "；".join(hard_blockers[:6]))
     print("[2/3] AI 解读与编辑审校完成")
 
     ts = _ts()
@@ -811,10 +844,10 @@ def cmd_render(args):
         except json.JSONDecodeError:
             sys.exit(f"[错误] distilled 既不是文件也不是合法 JSON：{dist_path}")
 
-    distilled = normalize_distilled(distilled, article)
+    research = distilled.get("research_ledger") if isinstance(distilled.get("research_ledger"), dict) else None
+    distilled = normalize_distilled(distilled, article, research=research)
     distilled, render_fixes = apply_safe_language_fixes(distilled)
     required_modes = ("full",)
-    research = distilled.get("research_ledger") if isinstance(distilled.get("research_ledger"), dict) else None
     render_audit = audit_distilled(
         distilled,
         research,
@@ -822,10 +855,17 @@ def cmd_render(args):
         strict_editorial=True,
         semantic_coverage_strict=False,
     )
-    try:
-        assert_publishable(render_audit, "待渲染文章")
-    except ValueError as exc:
-        sys.exit(f"[质量门禁] {exc}")
+    render_audit = demote_soft_blockers(render_audit)
+    hard_blockers, _soft = split_audit_blockers(render_audit)
+    usable_sections = [
+        item for item in (distilled.get("sections") or [])
+        if isinstance(item, dict) and str(item.get("title") or "").strip() and str(item.get("content") or "").strip()
+    ]
+    structural_ok = bool(str(distilled.get("distilled_title") or "").strip()) and len(usable_sections) >= 3
+    if hard_blockers and not structural_ok:
+        sys.exit("[质量门禁] 待渲染文章未通过质量门禁：" + "；".join(hard_blockers[:6]))
+    if hard_blockers:
+        print("[质量门禁警告] 仍有未消除项，但正文结构完整，继续渲染：" + "；".join(hard_blockers[:6]))
     quality = distilled.get("editorial_quality") if isinstance(distilled.get("editorial_quality"), dict) else {}
     prior_fixes = list(quality.get("language_fixes") or [])
     all_fixes = prior_fixes + render_fixes

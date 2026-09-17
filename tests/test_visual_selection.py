@@ -217,6 +217,31 @@ def test_semantic_tones_render_for_tables_and_stats():
     assert "tone-rainbow" not in html
 
 
+def test_short_spec_compare_defaults_to_matrix():
+    from evidence import normalize_distilled
+    from renderer import render_html
+    payload = base_payload()
+    payload["visuals"] = [{
+        "type": "compare_table",
+        "title": "2026年旗舰纸面规格对照",
+        "after_section_id": "measurement",
+        "data": {
+            "headers": ["规格", "昇腾950PR", "昇腾950DT", "英伟达B300"],
+            "rows": [
+                ["FP4峰值", "2 PFLOPS", "2 PFLOPS", "13.5 PFLOPS"],
+                ["内存带宽", "1.6 TB/s", "4 TB/s", "8 TB/s"],
+                ["内存容量", "128 GB", "144 GB", "未给出"],
+            ],
+        },
+    }]
+    normalized = normalize_distilled(payload, ARTICLE)
+    assert normalized["visuals"][0]["data"]["layout"] == "matrix"
+    html = render_html(ARTICLE, normalized)
+    assert "cmp-table" in html
+    assert "comparison-list stacked" not in html
+
+
+
 if __name__ == "__main__":
     test_layer_stack_renders_as_expandable_html()
     test_invalid_layer_stack_is_blocked_in_strict_mode()

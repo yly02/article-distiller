@@ -96,7 +96,8 @@ def test_complete_number_story_passes_and_renders():
     assert ".number-story.stat { display:block; }" in html
     assert ".number-meta { display:block;" in html
     assert ".number-compare { display:block;" in html
-    assert "这个数字不能说明什么：不能外推为所有真实任务的成功率" in html
+    assert "这个数字不能说明什么" not in html
+    assert "不能外推为所有真实任务的成功率" not in html
     assert "分母：100 次测试 · 范围：" not in html
     assert html.index('id="measurement"') < html.index('data-number-story-id="success-rate"') < html.index('id="mechanism"')
     assert "原始证据图库 (1)" in html
@@ -181,7 +182,8 @@ def test_number_story_accepts_reader_facing_labels():
     html = render_html(ARTICLE, normalized)
     assert '<dt>计时口径</dt><dd>100 次测试</dd>' in html
     assert '<div class="number-compare-label">过去的处理方式</div>' in html
-    assert "这 3 分钟不能说明什么：不能外推为所有真实任务的成功率" in html
+    assert "这 3 分钟不能说明什么" not in html
+    assert "不能外推为所有真实任务的成功率" not in html
 
 
 def test_number_story_without_real_comparison_uses_compact_layout():
@@ -203,7 +205,7 @@ def test_number_story_without_real_comparison_uses_compact_layout():
     assert "适用场景" not in html
     assert "无明确对照" not in html
     assert "无可计算变化" not in html
-    assert "<strong>尚未公布：</strong>" in html
+    assert "尚未公布" not in html
     assert "厂商发布口径 · 2026 年 8 月" in html
     assert "统计对象：100 次测试" not in html
 

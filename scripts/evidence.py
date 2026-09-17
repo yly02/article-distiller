@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from editorial_quality.support import apply_canonical_tones, canonical_tone
+
 
 VERDICTS = {"确认", "原文声称", "交叉验证", "存疑", "夸大", "无法核实"}
 TRUST_WARNING = "当前仅能证明这些内容出现在原文或原文提供的来源中，尚未完成独立来源交叉核验。"
@@ -276,6 +278,79 @@ def _normalize_listening_cards(raw_cards: Any, media_by_id: dict[str, dict], med
     return cards
 
 
+
+def _ensure_metric_number_stories(
+    distilled: dict,
+    number_stories: list[dict],
+    research: Any,
+    article_url: str,
+    registered_source_urls: set[str],
+    media_by_id: dict[str, dict] | None = None,
+) -> list[dict]:
+    """Fill missing high-metric number stories from the research ledger without another model call."""
+    ledger = research if isinstance(research, dict) else (
+        distilled.get("research_ledger") if isinstance(distilled.get("research_ledger"), dict) else {}
+    )
+    claims = [item for item in (ledger.get("claims") or []) if isinstance(item, dict)]
+    existing_ids = {
+        claim_id
+        for story in number_stories
+        for claim_id in story.get("claim_ids") or []
+        if claim_id
+    }
+    section_id = ""
+    for section in distilled.get("sections") or []:
+        if isinstance(section, dict) and str(section.get("id") or "").strip():
+            section_id = str(section.get("id")).strip()
+            break
+    if not section_id:
+        return number_stories
+    stories = list(number_stories)
+    source_url = normalize_url(article_url)
+    source_registered = bool(source_url and url_key(source_url) in registered_source_urls)
+    if source_url and not source_registered:
+        registered_source_urls.add(url_key(source_url))
+        source_registered = True
+    for claim in claims:
+        claim_id = str(claim.get("id") or "").strip()
+        if not claim_id or claim_id in existing_ids:
+            continue
+        if str(claim.get("importance") or "").lower() != "high":
+            continue
+        if str(claim.get("claim_kind") or "").lower() != "metric":
+            continue
+        claim_text = str(claim.get("claim") or "").strip()
+        if not claim_text:
+            continue
+        numbers = re.findall(r"\d+(?:[.,]\d+)?(?:%|万|亿)?", claim_text)
+        value = numbers[0] if numbers else claim_text[:24]
+        caveat = str(claim.get("caveat") or "").strip() or "以原文口径为准，不是独立复测。"
+        stories.append({
+            "id": f"ns-{claim_id}",
+            "title": claim_text[:40],
+            "value": value,
+            "unit": "原文口径",
+            "denominator": claim_text,
+            "scope": "原文高优先级数字主张",
+            "period": "原文给出的时间口径",
+            "baseline": "原文对照",
+            "change": numbers[1] if len(numbers) > 1 else claim_text,
+            "boundary": caveat,
+            "source_url": source_url,
+            "source_asset_ids": [],
+            "registered_source_asset_ids": [],
+            "unregistered_source_asset_ids": [],
+            "source_registered": source_registered,
+            "claim_ids": [claim_id],
+            "after_section_id": section_id,
+            "importance": "high",
+            "complete": True,
+            "suppress_visual": True,
+            "display_mode": "audit_only",
+        })
+        existing_ids.add(claim_id)
+    return _normalize_number_stories(stories, media_by_id or {}, registered_source_urls)
+
 def _normalize_visuals(raw_visuals: Any) -> list[dict]:
     """Coerce common LLM visual aliases into renderer/audit schemas."""
     visuals = []
@@ -291,7 +366,32 @@ def _normalize_visuals(raw_visuals: Any) -> list[dict]:
             strategies = data.get("strategies")
             if not isinstance(strategies, list):
                 strategies = data.get("items") if isinstance(data.get("items"), list) else []
-            data["strategies"] = [row for row in strategies if isinstance(row, dict)]
+            normalized_strategies = []
+            for row in strategies:
+                if not isinstance(row, dict):
+                    continue
+                strategy = dict(row)
+                strategy["open_questions"] = str(
+                    strategy.get("open_questions")
+                    or strategy.get("pending_conditions")
+                    or strategy.get("open_question")
+                    or ""
+                ).strip()
+                strategy["expected_effect"] = str(
+                    strategy.get("expected_effect") or strategy.get("effect") or ""
+                ).strip()
+                strategy["target"] = str(
+                    strategy.get("target") or strategy.get("object") or ""
+                ).strip()
+                strategy["mechanism"] = str(
+                    strategy.get("mechanism") or strategy.get("how") or ""
+                ).strip()
+                strategy["tone"] = canonical_tone(strategy.get("tone") or strategy.get("semantic_color"))
+                normalized_strategies.append(strategy)
+            data["strategies"] = normalized_strategies
+            data["boundary"] = str(
+                data.get("boundary") or data.get("reading_boundary") or data.get("caption") or ""
+            ).strip()
             data.pop("items", None)
         elif visual_type == "compare_table":
             rows = []
@@ -305,6 +405,17 @@ def _normalize_visuals(raw_visuals: Any) -> list[dict]:
                 elif isinstance(row, (list, tuple)):
                     rows.append(list(row))
             data["rows"] = rows
+            headers = data.get("headers") if isinstance(data.get("headers"), list) else []
+            longest = 0
+            for row in rows:
+                for cell in row:
+                    longest = max(longest, len(str(cell or "")))
+            layout = str(data.get("layout") or "").strip().lower()
+            if layout not in {"matrix", "paired", "stacked"}:
+                layout = "matrix" if len(headers) >= 3 and longest <= 40 else "stacked"
+            elif layout == "stacked" and len(headers) >= 3 and longest <= 24:
+                layout = "matrix"
+            data["layout"] = layout
         elif visual_type == "delta_table":
             rows = []
             raw_rows = data.get("rows") if isinstance(data.get("rows"), list) else data.get("items")
@@ -313,20 +424,35 @@ def _normalize_visuals(raw_visuals: Any) -> list[dict]:
                     continue
                 rows.append({
                     "label": row.get("label") or row.get("name") or "",
-                    "baseline": row.get("baseline") or row.get("old") or "",
-                    "current": row.get("current") or row.get("new") or "",
-                    "change": row.get("change") or "",
+                    "baseline": row.get("baseline") or row.get("old") or row.get("old_value") or "",
+                    "current": row.get("current") or row.get("new") or row.get("new_value") or "",
+                    "change": row.get("change") or row.get("delta") or "",
                     "direction": row.get("direction") or "flat",
-                    "tone": row.get("tone") or "neutral",
+                    "tone": canonical_tone(row.get("tone") or row.get("semantic_color")),
                 })
             data["rows"] = rows
             data.pop("items", None)
-        item["data"] = data
-        visuals.append(item)
+            data["boundary"] = str(data.get("boundary") or data.get("reading_boundary") or "").strip()
+        elif visual_type == "decision_table":
+            rows = []
+            raw_rows = data.get("rows") if isinstance(data.get("rows"), list) else data.get("items")
+            for row in raw_rows or []:
+                if not isinstance(row, dict):
+                    continue
+                item_row = dict(row)
+                item_row["tone"] = canonical_tone(item_row.get("tone") or item_row.get("semantic_color"))
+                rows.append(item_row)
+            data["rows"] = rows
+            data["boundary"] = str(
+                data.get("boundary") or data.get("scope") or data.get("reading_boundary") or ""
+            ).strip()
+            data.pop("items", None)
+        item["data"] = apply_canonical_tones(data)
+        visuals.append(apply_canonical_tones(item))
     return visuals
 
 
-def normalize_distilled(distilled: dict, article: Any) -> dict:
+def normalize_distilled(distilled: dict, article: Any, research: Any = None) -> dict:
     """给旧/新 JSON 补齐证据字段，并降低无证据结论的强度。"""
     if not isinstance(distilled, dict):
         raise ValueError("解读 JSON 顶层必须是对象")
@@ -449,7 +575,9 @@ def normalize_distilled(distilled: dict, article: Any) -> dict:
     number_stories = _normalize_number_stories(
         data.get("number_stories"), media_by_id, registered_source_urls
     )
-    data["number_stories"] = number_stories
+    data["number_stories"] = _ensure_metric_number_stories(
+        data, number_stories, research, article_url, registered_source_urls, media_by_id
+    )
     data["evidence_gallery"] = _normalize_evidence_gallery(
         data.get("evidence_gallery"), normalized_media, number_stories, media_by_id
     )

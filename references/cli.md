@@ -73,6 +73,8 @@ $PY "$SKILL_ROOT/scripts/run.py" <URL> --article-images generate \
 - `--single-pass`：只调用一次写作模型，与 `--skip-editorial-review` 互斥。
 - `--stage-cache-dir`、`--no-stage-cache`：指定或关闭来源与模型阶段缓存。
 
+来源快照在正文哈希未变时不重写，避免无意义地作废 repair 缓存。质量门禁先做确定性修复：把 `info`/`negative` 等色板别名收成允许值，并按研究账本补齐缺失的高优先级数字叙事。模型修复只在仍有硬阻断时启动，提示词只包含失败的表、缺的 claim 和章节 id，不再塞整篇文章。语义覆盖与中英专名对译默认降为警告，与 `--render` 一致。结构完整但门禁仍有未消除项时，成稿会写入缓存中的 `distilled.json` 并继续渲染 HTML。
+
 每次完整运行或 `--render` 成功后，运行时缓存目录会写入 `final-quality.json`，记录最终质量门禁、媒体渲染对账、语言修复数量和各模型阶段耗时；这些内部记录不会写入 HTML 可见区域。
 
 ## 缓存与运行时数据

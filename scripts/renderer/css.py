@@ -280,12 +280,17 @@ html { scroll-behavior:smooth; }
 
 /* 对比项：外层主题纵向，明确的平级对象可在组内并排。 */
 .comparison-list { margin:14px 0; border-top:1px solid var(--line); }
-.comparison-row { padding:14px 0 15px; border-bottom:1px solid var(--line); }
-.comparison-topic { margin-bottom:10px; color:var(--ink); font-size:15px; font-weight:750; }
+.comparison-row { padding:10px 0 12px; border-bottom:1px solid var(--line); }
+.comparison-topic { margin-bottom:6px; color:var(--ink); font-size:13px; font-weight:750; }
 .comparison-pairs { margin:0; }
+.comparison-list.stacked .comparison-pairs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
 .comparison-pair + .comparison-pair { margin-top:10px; }
+.comparison-list.stacked .comparison-pair + .comparison-pair { margin-top:0; }
+.comparison-list.stacked .comparison-pair { min-width:0; padding:8px 10px; border:1px solid var(--line);
+  border-radius:4px; background:var(--card); }
 .comparison-pair dt { margin:0 0 3px; color:var(--sub); font-size:11px; font-weight:750; }
 .comparison-pair dd { margin:0; color:var(--ink); font-size:14px; line-height:1.65; overflow-wrap:anywhere; }
+.comparison-list.stacked .comparison-pair dd { font-size:15px; font-weight:650; }
 .comparison-list.paired .comparison-pairs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .comparison-list.paired .comparison-pair { min-width:0; padding:11px 12px; border:1px solid var(--line);
   border-radius:4px; background:var(--accent-soft); }
@@ -765,6 +770,8 @@ html { scroll-behavior:smooth; }
   .number-story.compact .number-boundary { padding:5px 0 0; }
   .comparison-list.paired .comparison-pairs { grid-template-columns:1fr; }
   .comparison-list.paired .comparison-pair + .comparison-pair { margin-top:0; }
+  .comparison-list.stacked .comparison-pairs { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .comparison-list.stacked .comparison-pair { padding:7px 8px; }
   .cmp-table { font-size:12px; }
   .cmp-table th,.cmp-table td { padding:8px 7px; }
   .cmp-table th:first-child { width:20%; }

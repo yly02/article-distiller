@@ -25,7 +25,54 @@ PUBLIC_AUDIT_TONE_RE = re.compile(
     flags=re.UNICODE,
 )
 
+ALLOWED_TONES = {"primary", "baseline", "warning", "danger", "neutral"}
+TONE_ALIASES = {
+    "info": "neutral",
+    "information": "neutral",
+    "informational": "neutral",
+    "positive": "primary",
+    "success": "primary",
+    "ok": "primary",
+    "good": "primary",
+    "negative": "danger",
+    "error": "danger",
+    "fail": "danger",
+    "failed": "danger",
+    "bad": "danger",
+    "caution": "warning",
+    "warn": "warning",
+    "secondary": "baseline",
+    "muted": "baseline",
+    "default": "neutral",
+    "none": "neutral",
+}
+
+
+def canonical_tone(value: Any, default: str = "neutral") -> str:
+    text = _text(value).lower()
+    if text in ALLOWED_TONES:
+        return text
+    return TONE_ALIASES.get(text, default if default in ALLOWED_TONES else "neutral")
+
+
+def apply_canonical_tones(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: canonical_tone(item) if key in {"tone", "semantic_color"} else apply_canonical_tones(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [apply_canonical_tones(item) for item in value]
+    return value
+
+
 SEMANTIC_ALIAS_PATTERNS = (
+    (re.compile(r"nvidia", flags=re.IGNORECASE), "英伟达"),
+    (re.compile(r"huawei", flags=re.IGNORECASE), "华为"),
+    (re.compile(r"tsmc", flags=re.IGNORECASE), "台积电"),
+    (re.compile(r"smic", flags=re.IGNORECASE), "中芯国际"),
+    (re.compile(r"(\d+(?:\.\d+)?)\s*nm\b", flags=re.IGNORECASE), r"\1纳米"),
+    (re.compile(r"h100e", flags=re.IGNORECASE), "h100当量"),
     (re.compile(r"(?:不会|不再|无需|不需要|没有)(?:额外)?(?:消耗|新增|增加|使用)"), "不增加"),
     (re.compile(r"(?:不会|不再|没有)(?:记录|包含|携带|保存)"), "不编码"),
     (re.compile(r"(?:个人|使用者|账户|账号|身份识别)信息"), "用户身份"),
@@ -472,3 +519,78 @@ def _valid_layer_stack(item: dict) -> bool:
 
 
 __all__ = [name for name in list(globals()) if not name.startswith("__")]
+
+
+SOFT_BLOCKER_MARKERS = (
+    "未在发布内容中得到语义覆盖",
+    "缺少完整数字叙事",
+    "数字叙事缺少",
+    "策略切换器需要",
+    "前后变化表需要",
+    "条件决策表需要",
+    "状态矩阵需要",
+)
+
+
+def is_soft_blocker(message: str) -> bool:
+    text = _text(message)
+    return any(marker in text for marker in SOFT_BLOCKER_MARKERS)
+
+
+def split_audit_blockers(audit: dict) -> tuple[list[str], list[str]]:
+    blockers = [str(item) for item in (audit.get("blockers") or [])]
+    soft = [item for item in blockers if is_soft_blocker(item)]
+    hard = [item for item in blockers if item not in soft]
+    return hard, soft
+
+
+def demote_soft_blockers(audit: dict) -> dict:
+    data = dict(audit or {})
+    hard, soft = split_audit_blockers(data)
+    warnings = list(data.get("warnings") or [])
+    warnings.extend(f"已降级为警告：{item}" for item in soft)
+    data["blockers"] = hard
+    data["warnings"] = warnings
+    data["demoted_blockers"] = soft
+    data["publishable"] = not hard
+    if hard:
+        data["score"] = max(0, 100 - len(hard) * 20 - len(warnings) * 5)
+    else:
+        data["score"] = max(0, 100 - len(warnings) * 5)
+    return data
+
+
+_VISUAL_VALIDATORS = {
+    "strategy_tabs": _valid_strategy_tabs,
+    "delta_table": _valid_delta_table,
+    "decision_table": _valid_decision_table,
+    "status_matrix": _valid_status_matrix,
+    "interactive_compare": _valid_interactive_compare,
+    "scenario_calculator": _valid_scenario_calculator,
+    "capacity_curve": _valid_capacity_curve,
+    "cost_ledger": _valid_cost_ledger,
+    "metric_bars": _valid_metric_bars,
+    "rank_bars": _valid_rank_bars,
+    "funnel_flow": _valid_funnel_flow,
+    "flow": _valid_flow_visual,
+    "timeline": _valid_timeline_visual,
+    "layer_stack": _valid_layer_stack,
+}
+
+
+def drop_schema_invalid_visuals(distilled: dict) -> tuple[dict, list[str]]:
+    if not isinstance(distilled, dict):
+        return distilled, []
+    data = dict(distilled)
+    visuals = [item for item in _list(data.get("visuals")) if isinstance(item, dict)]
+    kept = []
+    dropped = []
+    for item in visuals:
+        visual_type = _text(item.get("type")).lower()
+        validator = _VISUAL_VALIDATORS.get(visual_type)
+        if validator is None or validator(item):
+            kept.append(item)
+        else:
+            dropped.append(visual_type or "unknown")
+    data["visuals"] = kept
+    return data, dropped

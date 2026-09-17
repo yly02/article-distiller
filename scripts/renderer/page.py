@@ -1,6 +1,8 @@
 """章节组装与整页 HTML。"""
 from __future__ import annotations
 
+import re
+
 from typing import Any
 
 from fetcher import Article

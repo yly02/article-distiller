@@ -14,7 +14,8 @@ from typing import Optional
 from urllib.parse import urlsplit, urlunsplit
 
 from fetcher import Article
-from editorial_quality import assert_publishable, audit_distilled
+from editorial_quality import audit_distilled
+from editorial_quality.support import demote_soft_blockers, drop_schema_invalid_visuals, split_audit_blockers
 from evidence import normalize_distilled, url_key
 from language_quality import apply_safe_language_fixes
 
@@ -509,6 +510,92 @@ def _repository_files_block(article: Article, max_chars: int = 12000) -> str:
     return "\n\n" + "\n\n".join(parts) if parts else ""
 
 
+def _failing_visuals(distilled: dict, audit: dict) -> list[dict]:
+    markers = ("策略切换器", "前后变化表", "条件决策表", "状态矩阵", "排行条", "数字条")
+    if not any(any(marker in str(item) for marker in markers) for item in (audit.get("blockers") or [])):
+        return []
+    visuals = [item for item in (distilled.get("visuals") or []) if isinstance(item, dict)]
+    return visuals
+
+
+def _repair_claims(research: dict, audit: dict) -> list[dict]:
+    metrics = audit.get("metrics") if isinstance(audit.get("metrics"), dict) else {}
+    wanted = set()
+    for key in (
+        "semantically_missing_high_claim_ids",
+        "missing_high_metric_story_ids",
+        "incomplete_high_metric_story_claim_ids",
+    ):
+        wanted.update(str(item) for item in (metrics.get(key) or []) if item)
+    claims = [item for item in (research.get("claims") or []) if isinstance(item, dict)]
+    if not wanted:
+        return claims[:8]
+    selected = [item for item in claims if str(item.get("id") or "") in wanted]
+    return selected or claims[:8]
+
+
+def _build_repair_prompt(article: Article, result: dict, research: dict, audit: dict) -> str:
+    focus = {
+        "blockers": audit.get("blockers") or [],
+        "warnings": audit.get("warnings") or [],
+        "metrics": {
+            key: value
+            for key, value in (audit.get("metrics") or {}).items()
+            if key in {
+                "semantically_missing_high_claim_ids",
+                "unsupported_numbers",
+                "missing_high_metric_story_ids",
+                "incomplete_number_story_ids",
+                "incomplete_high_metric_story_claim_ids",
+                "meta_narration_section_indexes",
+                "meta_narration_public_paths",
+            }
+        },
+        "failing_visuals": _failing_visuals(result, audit),
+        "repair_claims": _repair_claims(research or {}, audit),
+        "section_ids": [
+            item.get("id")
+            for item in (result.get("sections") or [])
+            if isinstance(item, dict) and item.get("id")
+        ],
+    }
+    return (
+        "--- 原文标题 ---\n"
+        + (article.title or "(未提取到)")
+        + "\n\n--- 必须消除的严格发布阻断项 ---\n"
+        + json.dumps(focus, ensure_ascii=False)
+        + "\n\n只修复上述阻断项，不删减已经通过的事实、实验、案例、来源和边界。"
+        "请返回可确定合并的 article_patch，不要返回完整 revised_article。"
+    )
+
+
+def _stable_repair_parent_hash(research: dict | None, result: dict, audit: dict) -> str:
+    sections = [item for item in (result.get("sections") or []) if isinstance(item, dict)]
+    visuals = [item for item in (result.get("visuals") or []) if isinstance(item, dict)]
+    return _hash_payload({
+        "research": research or {},
+        "blockers": audit.get("blockers") or [],
+        "title": result.get("distilled_title"),
+        "section_ids": [item.get("id") for item in sections],
+        "visual_types": [item.get("type") for item in visuals],
+        "repair_prompt_hash": _hash_payload(QUALITY_REPAIR_PATCH_PROMPT),
+    })
+
+
+def _save_distilled_checkpoint(checkpoint_dir: str | None, distilled: dict) -> str | None:
+    if not checkpoint_dir or not isinstance(distilled, dict):
+        return None
+    directory = os.path.abspath(checkpoint_dir)
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, "distilled.json")
+    temporary = os.path.join(directory, f".distilled.{os.getpid()}.tmp")
+    payload = json.dumps(distilled, ensure_ascii=False, indent=2)
+    with open(temporary, "w", encoding="utf-8") as handle:
+        handle.write(payload)
+    os.replace(temporary, path)
+    return path
+
+
 def distill(
     article: Article,
     config_path: Optional[str] = None,
@@ -799,46 +886,23 @@ def distill(
     language_fixes = selected_language_fixes + final_language_fixes
     # 统一门禁必须在来源、媒体和数字字段完成确定性规范化后运行；否则
     # 原始 LLM JSON 中尚未补齐的 registered 标记会被误判为未登记素材。
-    result = normalize_distilled(dict(result), article)
-    final_audit = audit_distilled(result, research, required_modes, strict_editorial=True)
+    if research is not None:
+        result["research_ledger"] = research
+    result = normalize_distilled(dict(result), article, research=research)
+    final_audit = audit_distilled(
+        result,
+        research,
+        required_modes,
+        strict_editorial=True,
+        semantic_coverage_strict=False,
+    )
 
-    if editorial_review and not final_audit.get("publishable"):
-        repair_parent_hash = _hash_payload({
-            "research": research or {},
-            "result": result,
-            "blockers": final_audit.get("blockers") or [],
-            "repair_prompt_hash": _hash_payload(QUALITY_REPAIR_PATCH_PROMPT),
-        })
-        repair_prompt = (
-            "--- 原文标题 ---\n"
-            + (article.title or "(未提取到)")
-            + "\n\n--- 必须消除的严格发布阻断项 ---\n"
-            + json.dumps({
-                "blockers": final_audit.get("blockers") or [],
-                "warnings": final_audit.get("warnings") or [],
-                "metrics": {
-                    key: value
-                    for key, value in (final_audit.get("metrics") or {}).items()
-                    if key in {
-                        "semantically_missing_high_claim_ids",
-                        "unsupported_numbers",
-                        "missing_high_metric_story_ids",
-                        "incomplete_number_story_ids",
-                        "incomplete_high_metric_story_claim_ids",
-                        "meta_narration_section_indexes",
-                        "meta_narration_public_paths",
-                    }
-                },
-            }, ensure_ascii=False)
-            + "\n\n--- 研究证据账本（仅保留修复所需口径） ---\n"
-            + _serialize_research_ledger(research or {}, max_chars=12000)
-            + "\n\n--- 当前完整文章 ---\n"
-            + _serialize_draft(result, max_chars=60000)
-            + "\n\n只修复上述阻断项，不删减已经通过的事实、实验、案例、来源和边界。"
-            "请返回可确定合并的 article_patch，不要返回完整 revised_article。"
-        )
+    hard_blockers, _soft_blockers = split_audit_blockers(final_audit)
+    if editorial_review and hard_blockers:
+        repair_parent_hash = _stable_repair_parent_hash(research, result, final_audit)
+        repair_prompt = _build_repair_prompt(article, result, research or {}, final_audit)
         print(
-            f"[质量修复阶段] 严格门禁仍有 {len(final_audit.get('blockers') or [])} 个阻断项，"
+            f"[质量修复阶段] 严格门禁仍有 {len(hard_blockers)} 个阻断项，"
             "启动一次定向修复"
         )
         repaired_response = _load_stage_checkpoint(
@@ -867,7 +931,9 @@ def distill(
             repaired = _merge_repair_candidate(result, repaired_response["revised_article"], article)
         if isinstance(repaired, dict):
             fixed_repaired, repair_language_fixes = apply_safe_language_fixes(repaired)
-            result = normalize_distilled(fixed_repaired, article)
+            if research is not None:
+                fixed_repaired["research_ledger"] = research
+            result = normalize_distilled(fixed_repaired, article, research=research)
             language_fixes += repair_language_fixes
             review_meta = {
                 **review_meta,
@@ -877,7 +943,13 @@ def distill(
                 if isinstance(repaired_response.get("quality_report"), dict)
                 else {},
             }
-            final_audit = audit_distilled(result, research, required_modes, strict_editorial=True)
+            final_audit = audit_distilled(
+                result,
+                research,
+                required_modes,
+                strict_editorial=True,
+                semantic_coverage_strict=False,
+            )
         else:
             review_meta = {
                 **review_meta,
@@ -885,7 +957,19 @@ def distill(
                 "repair_error": "质量修复阶段缺少可合并的 article_patch 对象",
             }
 
-    assert_publishable(final_audit, "编辑审校后的文章")
+    dropped = []
+    result, dropped = drop_schema_invalid_visuals(result)
+    if dropped:
+        result = normalize_distilled(dict(result), article, research=research)
+        print(f"[质量修复阶段] 已删除仍不完整的视觉组件：{', '.join(dropped)}")
+        final_audit = audit_distilled(
+            result,
+            research,
+            required_modes,
+            strict_editorial=True,
+            semantic_coverage_strict=False,
+        )
+    final_audit = demote_soft_blockers(final_audit)
     result["editorial_quality"] = {
         **review_meta,
         "language_fixes": language_fixes,
@@ -895,7 +979,11 @@ def distill(
     }
     if research is not None:
         result["research_ledger"] = research
+    saved = _save_distilled_checkpoint(checkpoint_dir, result)
+    if saved:
+        print(f"[阶段缓存] 已保存当前成稿：{saved}")
     return result
+
 
 
 def build_manual_prompt(

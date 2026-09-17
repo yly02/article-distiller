@@ -1060,6 +1060,98 @@ def test_output_is_always_a_single_html_file():
         assert not os.path.exists(output)
 
 
+
+def test_invalid_visual_tones_are_normalized_without_repair():
+    research = {
+        "claims": [{"id": "c1", "claim": "关键事实已经发生。", "importance": "high"}],
+        "unknowns": [],
+    }
+    draft = complete_draft("色板稿", ["c1"])
+    for index, section in enumerate(draft["sections"], 1):
+        section["id"] = f"s{index}"
+        section["content"] = "关键事实已经发生，读者据此判断边界。"
+    draft["visuals"] = [
+        {
+            "type": "decision_table",
+            "title": "怎么选",
+            "after_section_id": "s1",
+            "data": {
+                "boundary": "示意不是实测",
+                "rows": [
+                    {"condition": "要产量", "result": "看内存", "action": "先核对HBM", "tone": "info"},
+                    {"condition": "要单芯片", "result": "看密度", "action": "不要外推实测", "tone": "negative"},
+                ],
+            },
+        }
+    ]
+    reviewed = {"quality_report": {}, "revised_article": draft}
+    result, calls = run_distill_with_fake([research, draft, reviewed])
+    assert len(calls) == 3
+    rows = result["visuals"][0]["data"]["rows"]
+    assert rows[0]["tone"] == "neutral"
+    assert rows[1]["tone"] == "danger"
+    assert result["editorial_quality"]["final_audit"]["publishable"] is True
+
+
+def test_metric_number_stories_are_filled_from_research_ledger():
+    research = {
+        "claims": [
+            {
+                "id": "c9",
+                "claim": "华为2026年算力产出不到英伟达的4%。",
+                "claim_kind": "metric",
+                "importance": "high",
+            }
+        ]
+    }
+    distilled = complete_draft("数字补齐", ["c9"])
+    for index, section in enumerate(distilled["sections"], 1):
+        section["id"] = f"s{index}"
+    distilled["sections"][0]["content"] = "华为2026年算力产出不到英伟达的4%。"
+    article = article_from_text("正文", url="https://example.com/article", title="测试")
+    normalized = normalize_distilled(distilled, article, research=research)
+    claim_ids = {cid for item in normalized["number_stories"] for cid in item.get("claim_ids") or []}
+    assert "c9" in claim_ids
+    story = next(item for item in normalized["number_stories"] if "c9" in item.get("claim_ids", []))
+    assert story["complete"] is True
+    assert story["suppress_visual"] is True
+    audit = audit_distilled(normalized, research, ("full",), strict_editorial=True, semantic_coverage_strict=False)
+    assert "c9" not in (audit["metrics"].get("missing_high_metric_story_ids") or [])
+
+
+def test_semantic_coverage_accepts_nvidia_chinese_alias():
+    research = {
+        "claims": [
+            {
+                "id": "c2",
+                "claim": "Huawei compute output will be less than 4% of Nvidia in 2026.",
+                "claim_kind": "metric",
+                "importance": "high",
+            }
+        ]
+    }
+    distilled = complete_draft("别名", ["c2"])
+    for index, section in enumerate(distilled["sections"], 1):
+        section["id"] = f"s{index}"
+    distilled["sections"][0]["content"] = "按H100当量折算，华为2026年算力产出将不到英伟达的4%。"
+    audit = audit_distilled(distilled, research, ("full",), strict_editorial=True)
+    assert audit["metrics"]["semantically_missing_high_claim_ids"] == []
+
+
+def test_source_snapshot_skips_rewrite_when_content_hash_matches():
+    article = article_from_text(
+        "稳定保存的原始正文",
+        url="https://example.com/article",
+        title="原始标题",
+    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        first = cli._save_source_snapshot(temp_dir, article, [])
+        first_mtime = Path(first).stat().st_mtime
+        second = cli._save_source_snapshot(temp_dir, article, [])
+        assert first == second
+        assert Path(second).stat().st_mtime == first_mtime
+
+
 if __name__ == "__main__":
     test_ccswitch_text_config_discovery()
     test_url_and_evidence_invariants()
@@ -1079,6 +1171,10 @@ if __name__ == "__main__":
     test_stage_checkpoints_resume_without_model_calls()
     test_source_snapshot_restores_exact_inputs_after_fetch_failure()
     test_quality_repair_runs_only_after_strict_gate_failure()
+    test_invalid_visual_tones_are_normalized_without_repair()
+    test_metric_number_stories_are_filled_from_research_ledger()
+    test_semantic_coverage_accepts_nvidia_chinese_alias()
+    test_source_snapshot_skips_rewrite_when_content_hash_matches()
     test_checkpoint_fingerprint_ignores_volatile_evidence_body()
     test_ledger_truncation_keeps_valid_json()
     test_output_is_always_a_single_html_file()

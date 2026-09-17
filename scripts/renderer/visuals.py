@@ -13,7 +13,7 @@ def _render_visual(v: dict) -> str:
         headers = data.get("headers", [])
         rows = data.get("rows", [])
         column_roles = data.get("column_roles", [])
-        layout = str(data.get("layout") or "stacked").strip().lower()
+        layout = str(data.get("layout") or "matrix").strip().lower()
 
         def _compare_cells(row):
             if isinstance(row, dict):
@@ -99,8 +99,6 @@ def _render_visual(v: dict) -> str:
                     f'<div class="delta-change{tone_class}"><span class="delta-direction" aria-hidden="true">'
                     f'{direction_symbols.get(direction, "→")}</span>{_esc(row.get("change") or "")}</div></div>'
                 )
-            if boundary:
-                parts.append(f'<div class="delta-boundary"><strong>怎么读：</strong>{_esc(boundary)}</div>')
             parts.append('</div>')
 
     elif t == "status_matrix":
@@ -109,11 +107,13 @@ def _render_visual(v: dict) -> str:
         caption = str(data.get("caption") or "").strip()
         boundary = str(data.get("boundary") or "").strip()
         if columns and rows:
-            parts.append('<div class="status-matrix-scroll"><table class="status-matrix"><thead><tr><th>对象</th>')
+            row_header = str(data.get("row_header") or "对象").strip() or "对象"
+            parts.append('<div class="status-matrix-scroll"><table class="status-matrix"><thead><tr>'
+                         f'<th>{_esc(row_header)}</th>')
             parts.extend(f'<th>{_esc(column)}</th>' for column in columns)
             parts.append('</tr></thead><tbody>')
             for row in rows:
-                parts.append(f'<tr><td>{_esc(row.get("label") or "对象")}</td>')
+                parts.append(f'<tr><td>{_esc(row.get("label") or row_header)}</td>')
                 for cell in (row.get("cells") or []):
                     if not isinstance(cell, dict):
                         continue
@@ -124,8 +124,6 @@ def _render_visual(v: dict) -> str:
             parts.append('</tbody></table></div>')
             if caption:
                 parts.append(f'<div class="status-caption">{_esc(caption)}</div>')
-            if boundary:
-                parts.append(f'<div class="status-boundary"><strong>怎么读：</strong>{_esc(boundary)}</div>')
 
     elif t == "decision_table":
         rows = [x for x in (data.get("rows") or []) if isinstance(x, dict)]
@@ -140,8 +138,6 @@ def _render_visual(v: dict) -> str:
                 parts.append(f'<div class="decision-cell condition">{_esc(row.get("condition") or "")}</div>')
                 parts.append(f'<div class="decision-cell result">{_esc(row.get("result") or "")}</div>')
                 parts.append(f'<div class="decision-cell action">{_esc(row.get("action") or "")}</div></div>')
-            if boundary:
-                parts.append(f'<div class="decision-boundary"><strong>适用范围：</strong>{_esc(boundary)}</div>')
             parts.append('</div>')
 
     elif t == "metric_bars":
@@ -201,8 +197,6 @@ def _render_visual(v: dict) -> str:
                     parts.append(f'<div class="mb-ratio">{_esc(row.get("ratio") or "")}</div></div>')
                 parts.append('</section>')
             parts.append(f'<div class="mb-note">{_esc(normalization_note)}</div>')
-            if boundary:
-                parts.append(f'<div class="mb-boundary"><strong>怎么读：</strong>{_esc(boundary)}</div>')
             parts.append('</div>')
 
     elif t == "rank_bars":
@@ -257,8 +251,6 @@ def _render_visual(v: dict) -> str:
                 parts.append('</section>')
             if caption:
                 parts.append(f'<div class="rb-caption">{_esc(caption)}</div>')
-            if boundary:
-                parts.append(f'<div class="rb-boundary"><strong>怎么读：</strong>{_esc(boundary)}</div>')
             parts.append('</div>')
 
     elif t == "funnel_flow":
@@ -417,8 +409,6 @@ def _render_visual(v: dict) -> str:
                     parts.append('</ul>')
                 parts.append('</div></details>')
             parts.append('</div>')
-            if caption:
-                parts.append(f'<div class="layer-caption"><strong>怎么读：</strong>{_esc(caption)}</div>')
 
     elif t == "stat":
         items = data.get("items", [])
